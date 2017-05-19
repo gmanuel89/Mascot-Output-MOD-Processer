@@ -11,9 +11,9 @@ rm(list = ls())
 
 
 ### Program version (Specified by the program writer!!!!)
-R_script_version <- "2017.05.15.0"
+R_script_version <- "2017.05.19.0"
 ### GitHub URL where the R file is
-github_R_url <- "https://raw.githubusercontent.com/gmanuel89/Public-R-UNIMIB/master/MASCOT%20OUTPUT%20MOD-PROCESSER.R"
+github_R_url <- "https://raw.githubusercontent.com/gmanuel89/Mascot-Output-MOD-Processer/master/MASCOT%20OUTPUT%20MOD-PROCESSER.R"
 ### Name of the file when downloaded
 script_file_name <- "MASCOT OUTPUT MOD-PROCESSER"
 # Change log
@@ -1245,5 +1245,4 @@ tkgrid(browse_output_button, row = 3, column = 1, padx = c(10, 10), pady = c(10,
 tkgrid(select_input_button, row = 3, column = 2, padx = c(10, 10), pady = c(10, 10))
 tkgrid(run_mascot_output_modprocesser_function_button, row = 3, column = 3, padx = c(10, 10), pady = c(10, 10))
 tkgrid(end_session_button, row = 4, column = 2, padx = c(10, 10), pady = c(10, 10))
-
 
