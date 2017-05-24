@@ -11,9 +11,11 @@ rm(list = ls())
 
 
 ### Program version (Specified by the program writer!!!!)
-R_script_version <- "2017.05.19.0"
+R_script_version <- "2017.05.24.0"
 ### GitHub URL where the R file is
 github_R_url <- "https://raw.githubusercontent.com/gmanuel89/Mascot-Output-MOD-Processer/master/MASCOT%20OUTPUT%20MOD-PROCESSER.R"
+### GitHub URL of the program's WIKI
+github_wiki_url <- "https://github.com/gmanuel89/Mascot-Output-MOD-Processer/wiki"
 ### Name of the file when downloaded
 script_file_name <- "MASCOT OUTPUT MOD-PROCESSER"
 # Change log
@@ -653,7 +655,7 @@ run_mascot_output_modprocesser_function <- function() {
         
         
         
-        ########## REMOVE DUPLICATES (NON-MOD)
+        ########## REMOVE DUPLICATES (NON-MODIFIED)
         non_modified_peptides_df[["PROT"]]$prot_acc <- as.character(non_modified_peptides_df[["PROT"]]$prot_acc)
         non_modified_peptides_df[["MOD"]]$prot_acc <- as.character(non_modified_peptides_df[["MOD"]]$prot_acc)
         non_modified_peptides_df[["PROT"]]$pep_seq <- as.character(non_modified_peptides_df[["PROT"]]$pep_seq)
@@ -723,7 +725,7 @@ run_mascot_output_modprocesser_function <- function() {
         
         
         
-        ########## REMOVE DUPLICATES (MOD)
+        ########## REMOVE DUPLICATES (MODIFIED)
         modified_peptides_df[["PROT"]]$prot_acc <- as.character(modified_peptides_df[["PROT"]]$prot_acc)
         modified_peptides_df[["MOD"]]$prot_acc <- as.character(modified_peptides_df[["MOD"]]$prot_acc)
         modified_peptides_df[["PROT"]]$pep_seq <- as.character(modified_peptides_df[["PROT"]]$pep_seq)
@@ -826,7 +828,7 @@ run_mascot_output_modprocesser_function <- function() {
         
         
         
-        ########## REMOVE SEQUENCE DUPLICATES (MOD)
+        ########## REMOVE SEQUENCE DUPLICATES (MODIFIED)
         modified_peptides_df_sequences <- list()
         modified_peptides_df_sequences[["PROT"]] <- modified_peptides_df[["PROT"]]
         modified_peptides_df_sequences[["MOD"]] <- modified_peptides_df[["MOD"]]
@@ -906,17 +908,25 @@ run_mascot_output_modprocesser_function <- function() {
             # Rows with the pep_seq value
             modified_peptides_df_pep_seq <- modified_peptides_df[["MOD"]][modified_peptides_df[["MOD"]]$pep_seq == pep_seq_unique[ps], ]
             # Extract the unique modification
-            pep_var_mod_pos_unique <- unique(modified_peptides_df_pep_seq$pep_var_mod_pos)
-            # For each modification
-            for (pvmp in 1:length(pep_var_mod_pos_unique)) {
-                # Row with the pep_var_mod_pos value
-                modified_peptides_df_pep_seq_pep_var_mod_pos <- modified_peptides_df_pep_seq[modified_peptides_df_pep_seq$pep_var_mod_pos == pep_var_mod_pos_unique[pvmp], ]
-                # Search for this in the other file (first for the sequence, and then for the modification)
-                same_pep_seq <- modified_peptides_df[["PROT"]][modified_peptides_df[["PROT"]]$pep_seq == pep_seq_unique[ps], ]
-                same_pep_var_mod_pos <- same_pep_seq[same_pep_seq$pep_var_mod_pos == pep_var_mod_pos_unique[pvmp], ]
-                # Add this to the rows to discard (if there is a match with the other database)
-                if (length(same_pep_var_mod_pos) > 0) {
-                    row_ID_to_discard <- append(row_ID_to_discard, rownames(modified_peptides_df_pep_seq_pep_var_mod_pos))
+            pep_var_mod_unique <- unique(modified_peptides_df_pep_seq$pep_var_mod)
+            # For each pep_var_mod...
+            for (pvm in 1:length(pep_var_mod_unique)) {
+                # Rows with the pep_var_mod value
+                modified_peptides_df_pep_var_mod <- modified_peptides_df_pep_seq[modified_peptides_df_pep_seq$pep_var_mod == pep_var_mod_unique[pvm], ]
+                # Extract the unique modification position
+                pep_var_mod_pos_unique <- unique(modified_peptides_df_pep_var_mod$pep_var_mod_pos)
+                # For each modification
+                for (pvmp in 1:length(pep_var_mod_pos_unique)) {
+                    # Row with the pep_var_mod_pos value
+                    modified_peptides_df_pep_var_mod_pep_var_mod_pos <- modified_peptides_df_pep_var_mod[modified_peptides_df_pep_var_mod$pep_var_mod_pos == pep_var_mod_pos_unique[pvmp], ]
+                    # Search for this in the other file (first for the sequence, then for the peptide modification and finally for the peptide modification position)
+                    same_pep_seq <- modified_peptides_df[["PROT"]][modified_peptides_df[["PROT"]]$pep_seq == pep_seq_unique[ps], ]
+                    same_pep_var_mod <- same_pep_seq[same_pep_seq$pep_var_mod == pep_var_mod_unique[pvm], ]
+                    same_pep_var_mod_pos <- same_pep_var_mod[same_pep_var_mod$pep_var_mod_pos == pep_var_mod_pos_unique[pvmp], ]
+                    # Add this to the rows to discard (if there is a match with the other database)
+                    if (length(same_pep_var_mod_pos) > 0) {
+                        row_ID_to_discard <- append(row_ID_to_discard, rownames(modified_peptides_df_pep_var_mod_pep_var_mod_pos))
+                    }
                 }
             }
         }
@@ -1059,7 +1069,16 @@ run_mascot_output_modprocesser_function <- function() {
     }
 }
 
-
+##### Show info function
+show_info_function <- function() {
+    if (Sys.info()[1] == "Linux") {
+        system(command = paste("xdg-open", github_wiki_url), intern = FALSE)
+    } else if (Sys.info()[1] == "Darwin") {
+        system(command = paste("open", github_wiki_url), intern = FALSE)
+    } else if (Sys.info()[1] == "Windows") {
+        system(command = paste("cmd /c start", github_wiki_url), intern = FALSE)
+    }
+}
 
 
 
@@ -1218,10 +1237,11 @@ if (system_os == "Windows") {
 
 # The "area" where we will put our input lines
 window <- tktoplevel(bg = "white")
-tkpack.propagate(window, FALSE)
+tkwm.resizable(window, FALSE, FALSE)
+#tkpack.propagate(window, FALSE)
 tktitle(window) <- "MASCOT OUTPUT MOD-PROCESSER"
 # Title label
-title_label <- tklabel(window, text = "MASCOT\nOUTPUT\nMOD-PROCESSER", font = title_font, bg = "white")
+title_label <- tkbutton(window, text = "MASCOT\nOUTPUT\nMOD-PROCESSER", command = show_info_function, font = title_font, bg = "white", relief = "flat")
 #### Browse
 select_input_button <- tkbutton(window, text="IMPORT FILES...", command = file_import_function, font = button_font, bg = "white", width = 20)
 browse_output_button <- tkbutton(window, text="BROWSE\nOUTPUT FOLDER...", command = browse_output_function, font = button_font, bg = "white", width = 20)
