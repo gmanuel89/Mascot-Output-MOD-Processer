@@ -924,7 +924,7 @@ run_mascot_output_modprocesser_function <- function() {
                     same_pep_var_mod <- same_pep_seq[same_pep_seq$pep_var_mod == pep_var_mod_unique[pvm], ]
                     same_pep_var_mod_pos <- same_pep_var_mod[same_pep_var_mod$pep_var_mod_pos == pep_var_mod_pos_unique[pvmp], ]
                     # Add this to the rows to discard (if there is a match with the other database)
-                    if (length(same_pep_var_mod_pos) > 0) {
+                    if (nrow(same_pep_var_mod_pos) > 0) {
                         row_ID_to_discard <- append(row_ID_to_discard, rownames(modified_peptides_df_pep_var_mod_pep_var_mod_pos))
                     }
                 }
@@ -1058,6 +1058,7 @@ run_mascot_output_modprocesser_function <- function() {
         
         tkmessageBox(title = "Success!", message = "The process has successfully finished!", icon = "info")
     } else {
+        close(program_progress_bar)
         if (input_folder == "" || is.null(unlist(input_data))) {
             ########## NO INPUT FILE
             tkmessageBox(title = "No input file selected!", message = "No input file has been selected!", icon = "warning")
