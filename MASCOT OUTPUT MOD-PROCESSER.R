@@ -11,7 +11,7 @@ rm(list = ls())
 
 
 ### Program version (Specified by the program writer!!!!)
-R_script_version <- "2017.05.24.0"
+R_script_version <- "2017.05.25.0"
 ### GitHub URL where the R file is
 github_R_url <- "https://raw.githubusercontent.com/gmanuel89/Mascot-Output-MOD-Processer/master/MASCOT%20OUTPUT%20MOD-PROCESSER.R"
 ### GitHub URL of the program's WIKI
@@ -19,7 +19,7 @@ github_wiki_url <- "https://github.com/gmanuel89/Mascot-Output-MOD-Processer/wik
 ### Name of the file when downloaded
 script_file_name <- "MASCOT OUTPUT MOD-PROCESSER"
 # Change log
-change_log <- "1. Bugfix"
+change_log <- "1. Fixed when some columns are missing"
 
 
 
@@ -896,7 +896,7 @@ run_mascot_output_modprocesser_function <- function() {
         
         
         
-        ########## MERGE MODIFIED PEPTIDE SEQUENCES FROM THE MODIFIED PROTEOME WITH THE MODIFIED PEPTIDE SEQUENCES FROM THE NON-MODIFIED PROTEOME
+        ########## COMPARE THE MODIFIED AND THE NON-MODIFIED PROTEOMES TO RETRIEVE THE TRUE MODIFIED PEPIDES
         # Check the peptide sequence (pep_seq) and then the modification position (pep_var_mod_pos)
         modified_peptides_df[["PROT"]]$pep_var_mod_pos <- as.character(modified_peptides_df[["PROT"]]$pep_var_mod_pos)
         modified_peptides_df[["MOD"]]$pep_var_mod_pos <- as.character(modified_peptides_df[["MOD"]]$pep_var_mod_pos)
@@ -940,12 +940,30 @@ run_mascot_output_modprocesser_function <- function() {
         # Progress bar
         setTkProgressBar(program_progress_bar, value = 0.85, title = "Merging files...", label = "85 %")
         
+        
+        
+        
+        
+        ########## MERGE MODIFIED PEPTIDE SEQUENCES FROM THE MODIFIED PROTEOME WITH THE MODIFIED PEPTIDE SEQUENCES FROM THE NON-MODIFIED PROTEOME
+        # Add the Type column to identify where the peptides come from
         non_modified_peptides_df[["PROT"]]$Type <- rep("NON-MODIFIED PROTEOME", times = nrow(non_modified_peptides_df[["PROT"]]))
         if (nrow(true_modified_peptides_df) > 0) {
+            # Add the Type column to identify where the peptides come from
             true_modified_peptides_df$Type <- rep("MODIFIED PROTEOME", times = nrow(true_modified_peptides_df))
+            # Check the columns of the two dataframes and keep only the common ones...
+            common_columns <- intersect(names(true_modified_peptides_df), names(non_modified_peptides_df[["PROT"]]))
+            true_modified_peptides_df <- true_modified_peptides_df[, names(true_modified_peptides_df) %in% common_columns]
+            non_modified_peptides_df[["PROT"]] <- non_modified_peptides_df[["PROT"]][, names(non_modified_peptides_df[["PROT"]]) %in% common_columns]
+            # Merge the two dataframes
             non_modified_true_modified_peptides_df <- rbind(true_modified_peptides_df, non_modified_peptides_df[["PROT"]])
         } else {
+            # Add the Type column to identify where the peptides come from
             modified_peptides_df[["MOD"]]$Type <- rep("MODIFIED PROTEOME", times = nrow(modified_peptides_df[["MOD"]]))
+            # Check the columns of the two dataframes and keep only the common ones...
+            common_columns <- intersect(names(modified_peptides_df[["MOD"]]), names(non_modified_peptides_df[["PROT"]]))
+            modified_peptides_df[["MOD"]] <- modified_peptides_df[["MOD"]][, names(modified_peptides_df[["MOD"]]) %in% common_columns]
+            non_modified_peptides_df[["PROT"]] <- non_modified_peptides_df[["PROT"]][, names(non_modified_peptides_df[["PROT"]]) %in% common_columns]
+            # Merge the two dataframes
             non_modified_true_modified_peptides_df <- rbind(modified_peptides_df[["MOD"]], non_modified_peptides_df[["PROT"]])
         }
         
