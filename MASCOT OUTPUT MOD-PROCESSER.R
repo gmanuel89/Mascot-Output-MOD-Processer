@@ -11,7 +11,7 @@ rm(list = ls())
 
 
 ### Program version (Specified by the program writer!!!!)
-R_script_version <- "2017.05.25.0"
+R_script_version <- "2017.05.31.0"
 ### GitHub URL where the R file is
 github_R_url <- "https://raw.githubusercontent.com/gmanuel89/Mascot-Output-MOD-Processer/master/MASCOT%20OUTPUT%20MOD-PROCESSER.R"
 ### GitHub URL of the program's WIKI
@@ -132,6 +132,7 @@ output_format <- "Comma Separated Values (.csv)"
 file_format <- "csv"
 image_format <- ".png"
 class_name <- "CLASS"
+input_data <- NULL
 
 
 
@@ -459,632 +460,610 @@ end_session_function <- function() {
 
 ##### Run the mod-processer
 run_mascot_output_modprocesser_function <- function() {
-    ### Progress bar
-    program_progress_bar <- tkProgressBar(title = "Reading data...", label = "", min = 0, max = 1, initial = 0, width = 300)
-    setTkProgressBar(program_progress_bar, value = 0.01, title = "Reading data...", label = "1 %")
-    # Go to the working directory
-    setwd(output_folder)
-    # Check if all the columns are present
-    columns_needed <- c("pep_var_mod", "pep_ident", "pep_homol", "pep_score", "prot_acc", "pep_seq", "pep_var_mod_pos")
-    all_the_columns_are_present <- list()
-    all_the_columns_are_present[["PROT"]] <- all(columns_needed %in% colnames(input_data[["PROT"]]))
-    all_the_columns_are_present[["MOD"]] <- all(columns_needed %in% colnames(input_data[["MOD"]]))
-    all_the_columns_are_present <- all(unlist(all_the_columns_are_present))
-    missing_columns_value <- NULL
-    missing_columns <- list()
-    missing_columns[["PROT"]] <- columns_needed[columns_needed %in% colnames(input_data[["PROT"]]) == FALSE]
-    missing_columns[["MOD"]] <- columns_needed[columns_needed %in% colnames(input_data[["MOD"]]) == FALSE]
-    missing_columns <- unlist(missing_columns)
-    if (length(missing_columns) > 0) {
-        for (m in 1:length(missing_columns)) {
-            if (is.null(missing_columns_value)) {
-                missing_columns_value <- missing_columns[m]
-            } else {
-                missing_columns_value <- paste0(missing_columns_value, "\n", missing_columns[m])
-            }
-        }
-    }
-    
-    
-    
-    
-    
-    # Run only if there is data and the data is correct
-    if (input_folder != "" && length(input_file_list) == 2 && !is.null(unlist(input_data)) && all_the_columns_are_present == TRUE) {
-        ##### Automatically create a subfolder with all the results
-        ## Check if such subfolder exists
-        list_of_directories <- list.dirs(output_folder, full.names = FALSE, recursive = FALSE)
-        ## Check the presence of a MASCOT folder
-        MASCOT_folder_presence <- FALSE
-        if (length(list_of_directories) > 0) {
-            for (dr in 1:length(list_of_directories)) {
-                if (length(grep("MASCOT", list_of_directories[dr], fixed = TRUE)) > 0) {
-                    MASCOT_folder_presence <- TRUE
-                }
-            }
-        }
-        ## If it present...
-        if (isTRUE(MASCOT_folder_presence)) {
-            ## Extract the number after the STATISTICS
-            # Number for the newly created folder
-            MASCOT_new_folder_number <- 0
-            # List of already present numbers
-            MASCOT_present_folder_numbers <- integer()
-            # For each folder present...
-            for (dr in 1:length(list_of_directories)) {
-                # If it is named MASCOT
-                if (length(grep("MASCOT", list_of_directories[dr], fixed = TRUE)) > 0) {
-                    # Split the name
-                    MASCOT_present_folder_split <- unlist(strsplit(list_of_directories[dr], "MASCOT"))
-                    # Add the number to the list of MASCOT numbers (if it is NA it means that what was following the MASCOT was not a number)
-                    try({
-                        if (!is.na(as.integer(MASCOT_present_folder_split[2]))) {
-                            MASCOT_present_folder_numbers <- append(MASCOT_present_folder_numbers, as.integer(MASCOT_present_folder_split[2]))
-                        } else {
-                            MASCOT_present_folder_numbers <- append(MASCOT_present_folder_numbers, as.integer(0))
-                        }
-                    }, silent = TRUE)
-                }
-            }
-            # Sort the STATISTICS folder numbers
-            try(MASCOT_present_folder_numbers <- sort(MASCOT_present_folder_numbers))
-            # The new folder number will be the greater + 1
-            try(MASCOT_new_folder_number <- MASCOT_present_folder_numbers[length(MASCOT_present_folder_numbers)] + 1)
-            # Generate the new subfolder
-            MASCOT_subfolder <- paste("MASCOT", MASCOT_new_folder_number)
-            # Estimate the new output folder
-            output_subfolder <- file.path(output_folder, MASCOT_subfolder)
-            # Create the subfolder
-            dir.create(output_subfolder)
-        } else {
-            # If it not present...
-            # Create the folder where to dump the files and go to it...
-            MASCOT_subfolder <- paste("MASCOT", "1")
-            # Estimate the new output folder
-            output_subfolder <- file.path(output_folder, MASCOT_subfolder)
-            # Create the subfolder
-            dir.create(output_subfolder)
-        }
-        # Go to the new working directory
-        setwd(output_subfolder)
+    #### Run only if there is data
+    if (!is.null(input_data)) {
         
         
-        
-        
-        
-        # Progress bar
-        setTkProgressBar(program_progress_bar, value = 0.05, title = "Splitting data...", label = "5 %")
-        
-        
-        
-        
-        
-        ########## DATA SPLIT: MODIFIED vs NON-MODIFIED
-        # Convert the pep_var_mod column to character
-        input_data[["PROT"]]$pep_var_mod <- as.character(input_data[["PROT"]]$pep_var_mod)
-        input_data[["MOD"]]$pep_var_mod <- as.character(input_data[["MOD"]]$pep_var_mod)
-        # The modified peptides have something in this column
-        modified_peptides_df <- list()
-        modified_peptides_df[["PROT"]] <- input_data[["PROT"]][input_data[["PROT"]]$pep_var_mod != "", ]
-        modified_peptides_df[["MOD"]] <- input_data[["MOD"]][input_data[["MOD"]]$pep_var_mod != "", ]
-        # The unmodified peptides do not have anything as modification
-        non_modified_peptides_df <- list()
-        non_modified_peptides_df[["PROT"]] <- input_data[["PROT"]][input_data[["PROT"]]$pep_var_mod == "", ]
-        non_modified_peptides_df[["MOD"]] <- input_data[["MOD"]][input_data[["MOD"]]$pep_var_mod == "", ]
-        
-        
-        
-        
-        
-        # Progress bar
-        setTkProgressBar(program_progress_bar, value = 0.10, title = "Determining homology and identity...", label = "10 %")
-        
-        
-        
-        
-        
-        ########## IDENTITY
-        # Insert a column named "identity", which contains the information about the identity or the homology of the peptides, according to their scores...
-        # If pep_score is more than the pep_ident, the peptide is flagged as "identity". If this condition is not satisfied check the pep_homol: if pep_homol is present (not NA or > 0) and the pep_score is more than the pep_homol, flag the peptide as "homology". If pep_homol is not present (NA or 0) or the pep_score is not more than the pep_homol, "discard" the peptide.
-        
-        non_modified_peptides_df[["PROT"]]$identity <- non_modified_peptides_df[["PROT"]]$pep_var_mod
-        non_modified_peptides_df[["MOD"]]$identity <- non_modified_peptides_df[["MOD"]]$pep_var_mod
-        modified_peptides_df[["PROT"]]$identity <- modified_peptides_df[["PROT"]]$pep_var_mod
-        modified_peptides_df[["MOD"]]$identity <- modified_peptides_df[["MOD"]]$pep_var_mod
-        
-        for (l in 1:length(non_modified_peptides_df[["PROT"]]$identity)) {
-            if (non_modified_peptides_df[["PROT"]]$pep_score[l] >= non_modified_peptides_df[["PROT"]]$pep_ident[l]) {
-                non_modified_peptides_df[["PROT"]]$identity[l] <- "identity"
-            } else {
-                if (!is.na(non_modified_peptides_df[["PROT"]]$pep_homol[l]) && (non_modified_peptides_df[["PROT"]]$pep_score[l] > non_modified_peptides_df[["PROT"]]$pep_homol[l])) {
-                    non_modified_peptides_df[["PROT"]]$identity[l] <- "homology"
-                } else {
-                    non_modified_peptides_df[["PROT"]]$identity[l] <- "discard"
-                }
-            }
-        }
-        for (l in 1:length(non_modified_peptides_df[["MOD"]]$identity)) {
-            if (non_modified_peptides_df[["MOD"]]$pep_score[l] >= non_modified_peptides_df[["MOD"]]$pep_ident[l]) {
-                non_modified_peptides_df[["MOD"]]$identity[l] <- "identity"
-            } else {
-                if (!is.na(non_modified_peptides_df[["MOD"]]$pep_homol[l]) && (non_modified_peptides_df[["MOD"]]$pep_score[l] > non_modified_peptides_df[["MOD"]]$pep_homol[l])) {
-                    non_modified_peptides_df[["MOD"]]$identity[l] <- "homology"
-                } else {
-                    non_modified_peptides_df[["MOD"]]$identity[l] <- "discard"
-                }
-            }
-        }
-        
-        for (l in 1:length(modified_peptides_df[["PROT"]]$identity)) {
-            if (modified_peptides_df[["PROT"]]$pep_score[l] >= modified_peptides_df[["PROT"]]$pep_ident[l]) {
-                modified_peptides_df[["PROT"]]$identity[l] <- "identity"
-            } else {
-                if (!is.na(modified_peptides_df[["PROT"]]$pep_homol[l]) && (modified_peptides_df[["PROT"]]$pep_score[l] > modified_peptides_df[["PROT"]]$pep_homol[l])) {
-                    modified_peptides_df[["PROT"]]$identity[l] <- "homology"
-                } else {
-                    modified_peptides_df[["PROT"]]$identity[l] <- "discard"
-                }
-            }
-        }
-        for (l in 1:length(modified_peptides_df[["MOD"]]$identity)) {
-            if (modified_peptides_df[["MOD"]]$pep_score[l] >= modified_peptides_df[["MOD"]]$pep_ident[l]) {
-                modified_peptides_df[["MOD"]]$identity[l] <- "identity"
-            } else {
-                if (!is.na(modified_peptides_df[["MOD"]]$pep_homol[l]) && (modified_peptides_df[["MOD"]]$pep_score[l] > modified_peptides_df[["MOD"]]$pep_homol[l])) {
-                    modified_peptides_df[["MOD"]]$identity[l] <- "homology"
-                } else {
-                    modified_peptides_df[["MOD"]]$identity[l] <- "discard"
-                }
-            }
-        }
-        
-        # Discard the peptides to be discarded
-        non_modified_peptides_df[["PROT"]] <- non_modified_peptides_df[["PROT"]][non_modified_peptides_df[["PROT"]]$identity != "discard", ]
-        non_modified_peptides_df[["MOD"]] <- non_modified_peptides_df[["MOD"]][non_modified_peptides_df[["MOD"]]$identity != "discard", ]
-        modified_peptides_df[["PROT"]] <- modified_peptides_df[["PROT"]][modified_peptides_df[["PROT"]]$identity != "discard", ]
-        modified_peptides_df[["MOD"]] <- modified_peptides_df[["MOD"]][modified_peptides_df[["MOD"]]$identity != "discard", ]
-        
-        
-        
-        
-        
-        # Progress bar
-        setTkProgressBar(program_progress_bar, value = 0.20, title = "Discarding non-modified duplicates...", label = "20 %")
-        
-        
-        
-        
-        
-        ########## REMOVE DUPLICATES (NON-MODIFIED)
-        non_modified_peptides_df[["PROT"]]$prot_acc <- as.character(non_modified_peptides_df[["PROT"]]$prot_acc)
-        non_modified_peptides_df[["MOD"]]$prot_acc <- as.character(non_modified_peptides_df[["MOD"]]$prot_acc)
-        non_modified_peptides_df[["PROT"]]$pep_seq <- as.character(non_modified_peptides_df[["PROT"]]$pep_seq)
-        non_modified_peptides_df[["MOD"]]$pep_seq <- as.character(non_modified_peptides_df[["MOD"]]$pep_seq)
-        
-        # Order the dataframe according to prot_acc, pep_seq, pep_score
-        non_modified_peptides_df[["PROT"]] <- non_modified_peptides_df[["PROT"]][order(non_modified_peptides_df[["PROT"]]$prot_acc, non_modified_peptides_df[["PROT"]]$pep_seq, -non_modified_peptides_df[["PROT"]]$pep_score), ]
-        non_modified_peptides_df[["MOD"]] <- non_modified_peptides_df[["MOD"]][order(non_modified_peptides_df[["MOD"]]$prot_acc, non_modified_peptides_df[["MOD"]]$pep_seq, -non_modified_peptides_df[["MOD"]]$pep_score), ]
-        
-        # Extract the unique values (keep unique prot_acc and pep_seq and only the highest score for prot_acc/pep_seq duplicates)
-        row_ID_to_keep <- list(PROT = vector(), MOD = vector())
-        prot_acc_unique <- list()
-        non_modified_peptides_df_prot_acc <- list()
-        pep_seq_unique <- list()
-        non_modified_peptides_df_prot_acc_pep_seq <- list()
-        final_df <- list()
-        
-        # Determine the unique values of the prot_acc column
-        prot_acc_unique[["PROT"]] <- unique(non_modified_peptides_df[["PROT"]]$prot_acc)
-        prot_acc_unique[["MOD"]] <- unique(non_modified_peptides_df[["MOD"]]$prot_acc)
-        # For each prot_acc...
-        for (pa in 1:length(prot_acc_unique[["PROT"]])) {
-            # Rows with the prot_acc_value
-            non_modified_peptides_df_prot_acc[["PROT"]] <- non_modified_peptides_df[["PROT"]][non_modified_peptides_df[["PROT"]]$prot_acc == prot_acc_unique[["PROT"]][pa],]
-            # Determine the unique values of the pep_seq column
-            pep_seq_unique[["PROT"]] <- unique(non_modified_peptides_df_prot_acc[["PROT"]]$pep_seq)
-            # For each pep_seq...
-            for (ps in 1:length(pep_seq_unique[["PROT"]])) {
-                # Rows with the pep_seq_value
-                non_modified_peptides_df_prot_acc_pep_seq[["PROT"]] <- non_modified_peptides_df_prot_acc[["PROT"]][non_modified_peptides_df_prot_acc[["PROT"]]$pep_seq == pep_seq_unique[["PROT"]][ps],]
-                # Keep only the first (with the highest pep_score) (store the row ID)
-                row_ID_to_keep[["PROT"]] <- append(row_ID_to_keep[["PROT"]], rownames(non_modified_peptides_df_prot_acc_pep_seq[["PROT"]][1,]))
-            }
-        }
-        # For each prot_acc...
-        for (pa in 1:length(prot_acc_unique[["MOD"]])) {
-            # Rows with the prot_acc_value
-            non_modified_peptides_df_prot_acc[["MOD"]] <- non_modified_peptides_df[["MOD"]][non_modified_peptides_df[["MOD"]]$prot_acc == prot_acc_unique[["MOD"]][pa],]
-            # Determine the unique values of the pep_seq column
-            pep_seq_unique[["MOD"]] <- unique(non_modified_peptides_df_prot_acc[["MOD"]]$pep_seq)
-            # For each pep_seq...
-            for (ps in 1:length(pep_seq_unique[["MOD"]])) {
-                # Rows with the pep_seq_value
-                non_modified_peptides_df_prot_acc_pep_seq[["MOD"]] <- non_modified_peptides_df_prot_acc[["MOD"]][non_modified_peptides_df_prot_acc[["MOD"]]$pep_seq == pep_seq_unique[["MOD"]][ps],]
-                # Keep only the first (with the highest pep_score) (store the row ID)
-                row_ID_to_keep[["MOD"]] <- append(row_ID_to_keep[["MOD"]], rownames(non_modified_peptides_df_prot_acc_pep_seq[["MOD"]][1,]))
-            }
-        }
-        # Retrieve the rows to keep
-        final_df[["PROT"]] <- non_modified_peptides_df[["PROT"]][rownames(non_modified_peptides_df[["PROT"]]) %in% row_ID_to_keep[["PROT"]], ]
-        non_modified_peptides_df[["PROT"]] <- final_df[["PROT"]]
-        final_df[["MOD"]] <- non_modified_peptides_df[["MOD"]][rownames(non_modified_peptides_df[["MOD"]]) %in% row_ID_to_keep[["MOD"]], ]
-        non_modified_peptides_df[["MOD"]] <- final_df[["MOD"]]
-        
-        # Display the 'identity' first
-        non_modified_peptides_df[["PROT"]] <- non_modified_peptides_df[["PROT"]][order(non_modified_peptides_df[["PROT"]]$identity, non_modified_peptides_df[["PROT"]]$pep_score, non_modified_peptides_df[["PROT"]]$prot_acc, decreasing = TRUE), ]
-        non_modified_peptides_df[["MOD"]] <- non_modified_peptides_df[["MOD"]][order(non_modified_peptides_df[["MOD"]]$identity, non_modified_peptides_df[["MOD"]]$pep_score, non_modified_peptides_df[["MOD"]]$prot_acc, decreasing = TRUE), ]
-        
-        
-        
-        
-        
-        # Progress bar
-        setTkProgressBar(program_progress_bar, value = 0.30, title = "Discarding modified duplicates...", label = "30 %")
-        
-        
-        
-        
-        
-        ########## REMOVE DUPLICATES (MODIFIED)
-        modified_peptides_df[["PROT"]]$prot_acc <- as.character(modified_peptides_df[["PROT"]]$prot_acc)
-        modified_peptides_df[["MOD"]]$prot_acc <- as.character(modified_peptides_df[["MOD"]]$prot_acc)
-        modified_peptides_df[["PROT"]]$pep_seq <- as.character(modified_peptides_df[["PROT"]]$pep_seq)
-        modified_peptides_df[["MOD"]]$pep_seq <- as.character(modified_peptides_df[["MOD"]]$pep_seq)
-        
-        # Order the dataframe according to prot_acc, pep_seq, pep_var_mod, pep_var_mod_pos, pep_score
-        modified_peptides_df[["PROT"]] <- modified_peptides_df[["PROT"]][order(modified_peptides_df[["PROT"]]$prot_acc, modified_peptides_df[["PROT"]]$pep_seq, modified_peptides_df[["PROT"]]$pep_var_mod, modified_peptides_df[["PROT"]]$pep_var_mod_pos, -modified_peptides_df[["PROT"]]$pep_score), ]
-        modified_peptides_df[["MOD"]] <- modified_peptides_df[["MOD"]][order(modified_peptides_df[["MOD"]]$prot_acc, modified_peptides_df[["MOD"]]$pep_seq, modified_peptides_df[["MOD"]]$pep_var_mod, modified_peptides_df[["MOD"]]$pep_var_mod_pos, -modified_peptides_df[["MOD"]]$pep_score), ]
-        
-        # Extract the unique values (keep unique prot_acc, pep_seq, pep_var_mod and pep_var_mod_pos and only the highest score for prot_acc/pep_seq/pep_var_mod/pep_var_mod_pos duplicates)
-        row_ID_to_keep <- list(PROT = vector(), MOD = vector())
-        prot_acc_unique <- list()
-        modified_peptides_df_prot_acc <- list()
-        pep_seq_unique <- list()
-        modified_peptides_df_prot_acc_pep_seq <- list()
-        pep_var_mod_unique <- list()
-        modified_peptides_df_prot_acc_pep_seq_pep_var_mod <- list()
-        pep_var_mod_pos_unique <- list()
-        modified_peptides_df_prot_acc_pep_seq_pep_var_mod_pep_var_mod_pos <- list()
-        final_df <- list()
-        # Determine the unique values of the prot_acc column
-        prot_acc_unique[["PROT"]] <- unique(modified_peptides_df[["PROT"]]$prot_acc)
-        prot_acc_unique[["MOD"]] <- unique(modified_peptides_df[["MOD"]]$prot_acc)
-        # For each prot_acc...
-        for (pa in 1:length(prot_acc_unique[["PROT"]])) {
-            # Rows with the prot_acc_value
-            modified_peptides_df_prot_acc[["PROT"]] <- modified_peptides_df[["PROT"]][modified_peptides_df[["PROT"]]$prot_acc == prot_acc_unique[["PROT"]][pa],]
-            # Determine the unique values of the pep_seq column
-            pep_seq_unique[["PROT"]] <- unique(modified_peptides_df_prot_acc[["PROT"]]$pep_seq)
-            # For each pep_seq...
-            for (ps in 1:length(pep_seq_unique[["PROT"]])) {
-                # Rows with the pep_seq_value
-                modified_peptides_df_prot_acc_pep_seq[["PROT"]] <- modified_peptides_df_prot_acc[["PROT"]][modified_peptides_df_prot_acc[["PROT"]]$pep_seq == pep_seq_unique[["PROT"]][ps],]
-                # Determine the unique values of the pep_var_mod column
-                pep_var_mod_unique[["PROT"]] <- unique(modified_peptides_df_prot_acc_pep_seq[["PROT"]]$pep_var_mod)
-                # For each pep_var_mod...
-                for (pvm in 1:length(pep_var_mod_unique[["PROT"]])) {
-                    # Rows with the pep_var_mod_value
-                    modified_peptides_df_prot_acc_pep_seq_pep_var_mod[["PROT"]] <- modified_peptides_df_prot_acc_pep_seq[["PROT"]][modified_peptides_df_prot_acc_pep_seq[["PROT"]]$pep_var_mod == pep_var_mod_unique[["PROT"]][pvm],]
-                    # Determine the unique values of the pep_var_mod_pos column
-                    modified_peptides_df_prot_acc_pep_seq_pep_var_mod[["PROT"]]$pep_var_mod_pos <- as.character(modified_peptides_df_prot_acc_pep_seq_pep_var_mod[["PROT"]]$pep_var_mod_pos)
-                    pep_var_mod_pos_unique[["PROT"]] <- unique(modified_peptides_df_prot_acc_pep_seq_pep_var_mod[["PROT"]]$pep_var_mod_pos)
-                    # For each pep_var_mod_pos...
-                    for (pvmp in 1:length(pep_var_mod_pos_unique[["PROT"]])) {
-                        # Rows with the pep_var_mod_pos_value
-                        modified_peptides_df_prot_acc_pep_seq_pep_var_mod_pep_var_mod_pos[["PROT"]] <- modified_peptides_df_prot_acc_pep_seq_pep_var_mod[["PROT"]][modified_peptides_df_prot_acc_pep_seq_pep_var_mod[["PROT"]]$pep_var_mod_pos == pep_var_mod_pos_unique[["PROT"]][pvmp],]
-                        # Keep only the first (with the highest pep_score) (store the row ID)
-                        row_ID_to_keep[["PROT"]] <- append(row_ID_to_keep[["PROT"]], rownames(modified_peptides_df_prot_acc_pep_seq_pep_var_mod_pep_var_mod_pos[["PROT"]][1,]))
-                    }
-                }
-            }
-        }
-        # For each prot_acc...
-        for (pa in 1:length(prot_acc_unique[["MOD"]])) {
-            # Rows with the prot_acc_value
-            modified_peptides_df_prot_acc[["MOD"]] <- modified_peptides_df[["MOD"]][modified_peptides_df[["MOD"]]$prot_acc == prot_acc_unique[["MOD"]][pa],]
-            # Determine the unique values of the pep_seq column
-            pep_seq_unique[["MOD"]] <- unique(modified_peptides_df_prot_acc[["MOD"]]$pep_seq)
-            # For each pep_seq...
-            for (ps in 1:length(pep_seq_unique[["MOD"]])) {
-                # Rows with the pep_seq_value
-                modified_peptides_df_prot_acc_pep_seq[["MOD"]] <- modified_peptides_df_prot_acc[["MOD"]][modified_peptides_df_prot_acc[["MOD"]]$pep_seq == pep_seq_unique[["MOD"]][ps],]
-                # Determine the unique values of the pep_var_mod column
-                pep_var_mod_unique[["MOD"]] <- unique(modified_peptides_df_prot_acc_pep_seq[["MOD"]]$pep_var_mod)
-                # For each pep_var_mod...
-                for (pvm in 1:length(pep_var_mod_unique[["MOD"]])) {
-                    # Rows with the pep_var_mod_value
-                    modified_peptides_df_prot_acc_pep_seq_pep_var_mod[["MOD"]] <- modified_peptides_df_prot_acc_pep_seq[["MOD"]][modified_peptides_df_prot_acc_pep_seq[["MOD"]]$pep_var_mod == pep_var_mod_unique[["MOD"]][pvm],]
-                    # Determine the unique values of the pep_var_mod_pos column
-                    modified_peptides_df_prot_acc_pep_seq_pep_var_mod[["MOD"]]$pep_var_mod_pos <- as.character(modified_peptides_df_prot_acc_pep_seq_pep_var_mod[["MOD"]]$pep_var_mod_pos)
-                    pep_var_mod_pos_unique[["MOD"]] <- unique(modified_peptides_df_prot_acc_pep_seq_pep_var_mod[["MOD"]]$pep_var_mod_pos)
-                    # For each pep_var_mod_pos...
-                    for (pvmp in 1:length(pep_var_mod_pos_unique[["MOD"]])) {
-                        # Rows with the pep_var_mod_pos_value
-                        modified_peptides_df_prot_acc_pep_seq_pep_var_mod_pep_var_mod_pos[["MOD"]] <- modified_peptides_df_prot_acc_pep_seq_pep_var_mod[["MOD"]][modified_peptides_df_prot_acc_pep_seq_pep_var_mod[["MOD"]]$pep_var_mod_pos == pep_var_mod_pos_unique[["MOD"]][pvmp],]
-                        # Keep only the first (with the highest pep_score) (store the row ID)
-                        row_ID_to_keep[["MOD"]] <- append(row_ID_to_keep[["MOD"]], rownames(modified_peptides_df_prot_acc_pep_seq_pep_var_mod_pep_var_mod_pos[["MOD"]][1,]))
-                    }
-                }
-            }
-        }
-        # Retrieve the rows to keep
-        final_df[["PROT"]] <- modified_peptides_df[["PROT"]][rownames(modified_peptides_df[["PROT"]]) %in% row_ID_to_keep[["PROT"]], ]
-        modified_peptides_df[["PROT"]] <- final_df[["PROT"]]
-        final_df[["MOD"]] <- modified_peptides_df[["MOD"]][rownames(modified_peptides_df[["MOD"]]) %in% row_ID_to_keep[["MOD"]], ]
-        modified_peptides_df[["MOD"]] <- final_df[["MOD"]]
-        
-        # Display the 'identity' first
-        modified_peptides_df[["PROT"]] <- modified_peptides_df[["PROT"]][order(modified_peptides_df[["PROT"]]$identity, modified_peptides_df[["PROT"]]$pep_score, modified_peptides_df[["PROT"]]$prot_acc, decreasing = TRUE), ]
-        modified_peptides_df[["MOD"]] <- modified_peptides_df[["MOD"]][order(modified_peptides_df[["MOD"]]$identity, modified_peptides_df[["MOD"]]$pep_score, modified_peptides_df[["MOD"]]$prot_acc, decreasing = TRUE), ]
-        
-        
-        
-        
-        
-        # Progress bar
-        setTkProgressBar(program_progress_bar, value = 0.60, title = "Discarding modified sequence duplicates...", label = "60 %")
-        
-        
-        
-        
-        
-        ########## REMOVE SEQUENCE DUPLICATES (MODIFIED)
-        modified_peptides_df_sequences <- list()
-        modified_peptides_df_sequences[["PROT"]] <- modified_peptides_df[["PROT"]]
-        modified_peptides_df_sequences[["MOD"]] <- modified_peptides_df[["MOD"]]
-        
-        # Order the dataframe according to prot_acc, pep_seq, pep_var_mod, pep_var_mod_pos, pep_score
-        modified_peptides_df_sequences[["PROT"]] <- modified_peptides_df_sequences[["PROT"]][order(modified_peptides_df_sequences[["PROT"]]$prot_acc, modified_peptides_df_sequences[["PROT"]]$pep_seq, -modified_peptides_df_sequences[["PROT"]]$pep_score), ]
-        modified_peptides_df_sequences[["MOD"]] <- modified_peptides_df_sequences[["MOD"]][order(modified_peptides_df_sequences[["MOD"]]$prot_acc, modified_peptides_df_sequences[["MOD"]]$pep_seq, -modified_peptides_df_sequences[["MOD"]]$pep_score), ]
-        
-        # Extract the unique values (keep unique prot_acc and pep_seq, and only the highest score for prot_acc/pep_seq duplicates)
-        row_ID_to_keep <- list(PROT = vector(), MOD = vector())
-        prot_acc_unique <- list()
-        modified_peptides_df_sequences_prot_acc <- list()
-        pep_seq_unique <- list()
-        modified_peptides_df_sequences_prot_acc_pep_seq <- list()
-        final_df <- list()
-        # Determine the unique values of the prot_acc column
-        prot_acc_unique[["PROT"]] <- unique(modified_peptides_df_sequences[["PROT"]]$prot_acc)
-        prot_acc_unique[["MOD"]] <- unique(modified_peptides_df_sequences[["MOD"]]$prot_acc)
-        # For each prot_acc...
-        for (pa in 1:length(prot_acc_unique[["PROT"]])) {
-            # Rows with the prot_acc_value
-            modified_peptides_df_sequences_prot_acc[["PROT"]] <- modified_peptides_df_sequences[["PROT"]][modified_peptides_df_sequences[["PROT"]]$prot_acc == prot_acc_unique[pa],]
-            # Determine the unique values of the pep_seq column
-            pep_seq_unique[["PROT"]] <- unique(modified_peptides_df_sequences_prot_acc[["PROT"]]$pep_seq)
-            # For each pep_seq...
-            for (ps in 1:length(pep_seq_unique[["PROT"]])) {
-                # Rows with the pep_seq_value
-                modified_peptides_df_sequences_prot_acc_pep_seq[["PROT"]] <- modified_peptides_df_sequences_prot_acc[["PROT"]][modified_peptides_df_sequences_prot_acc[["PROT"]]$pep_seq == pep_seq_unique[["PROT"]][ps],]
-                # Keep only the first (with the highest pep_score) (store the row ID)
-                row_ID_to_keep[["PROT"]] <- append(row_ID_to_keep[["PROT"]], rownames(modified_peptides_df_sequences_prot_acc_pep_seq[["PROT"]][1,]))
-            }
-        }
-        # For each prot_acc...
-        for (pa in 1:length(prot_acc_unique[["MOD"]])) {
-            # Rows with the prot_acc_value
-            modified_peptides_df_sequences_prot_acc[["MOD"]] <- modified_peptides_df_sequences[["MOD"]][modified_peptides_df_sequences[["MOD"]]$prot_acc == prot_acc_unique[pa],]
-            # Determine the unique values of the pep_seq column
-            pep_seq_unique[["MOD"]] <- unique(modified_peptides_df_sequences_prot_acc[["MOD"]]$pep_seq)
-            # For each pep_seq...
-            for (ps in 1:length(pep_seq_unique[["MOD"]])) {
-                # Rows with the pep_seq_value
-                modified_peptides_df_sequences_prot_acc_pep_seq[["MOD"]] <- modified_peptides_df_sequences_prot_acc[["MOD"]][modified_peptides_df_sequences_prot_acc[["MOD"]]$pep_seq == pep_seq_unique[["MOD"]][ps],]
-                # Keep only the first (with the highest pep_score) (store the row ID)
-                row_ID_to_keep[["MOD"]] <- append(row_ID_to_keep[["MOD"]], rownames(modified_peptides_df_sequences_prot_acc_pep_seq[["MOD"]][1,]))
-            }
-        }
-        # Retrieve the rows to keep
-        final_df[["PROT"]] <- modified_peptides_df_sequences[["PROT"]][rownames(modified_peptides_df_sequences[["PROT"]]) %in% row_ID_to_keep[["PROT"]], ]
-        modified_peptides_df_sequences[["PROT"]] <- final_df[["PROT"]]
-        final_df[["MOD"]] <- modified_peptides_df_sequences[["MOD"]][rownames(modified_peptides_df_sequences[["MOD"]]) %in% row_ID_to_keep[["MOD"]], ]
-        modified_peptides_df_sequences[["MOD"]] <- final_df[["MOD"]]
-        
-        # Display the 'identity' first
-        modified_peptides_df_sequences[["PROT"]] <- modified_peptides_df_sequences[["PROT"]][order(modified_peptides_df_sequences[["PROT"]]$identity, modified_peptides_df_sequences[["PROT"]]$pep_score, modified_peptides_df_sequences[["PROT"]]$prot_acc, decreasing = TRUE), ]
-        modified_peptides_df_sequences[["MOD"]] <- modified_peptides_df_sequences[["MOD"]][order(modified_peptides_df_sequences[["MOD"]]$identity, modified_peptides_df_sequences[["MOD"]]$pep_score, modified_peptides_df_sequences[["MOD"]]$prot_acc, decreasing = TRUE), ]
-        
-        
-        
-        
-        
-        # Progress bar
-        setTkProgressBar(program_progress_bar, value = 0.70, title = "Determining the true modified peptides...", label = "70 %")
-        
-        
-        
-        
-        
-        ########## COMPARE THE MODIFIED AND THE NON-MODIFIED PROTEOMES TO RETRIEVE THE TRUE MODIFIED PEPIDES
-        # Check the peptide sequence (pep_seq) and then the modification position (pep_var_mod_pos)
-        modified_peptides_df[["PROT"]]$pep_var_mod_pos <- as.character(modified_peptides_df[["PROT"]]$pep_var_mod_pos)
-        modified_peptides_df[["MOD"]]$pep_var_mod_pos <- as.character(modified_peptides_df[["MOD"]]$pep_var_mod_pos)
-        row_ID_to_discard <- vector()
-        # Extract the unique sequences from the modified proteome
-        pep_seq_unique <- unique(modified_peptides_df[["MOD"]]$pep_seq)
-        # For each sequence...
-        for (ps in 1:length(pep_seq_unique)) {
-            # Rows with the pep_seq value
-            modified_peptides_df_pep_seq <- modified_peptides_df[["MOD"]][modified_peptides_df[["MOD"]]$pep_seq == pep_seq_unique[ps], ]
-            # Extract the unique modification
-            pep_var_mod_unique <- unique(modified_peptides_df_pep_seq$pep_var_mod)
-            # For each pep_var_mod...
-            for (pvm in 1:length(pep_var_mod_unique)) {
-                # Rows with the pep_var_mod value
-                modified_peptides_df_pep_var_mod <- modified_peptides_df_pep_seq[modified_peptides_df_pep_seq$pep_var_mod == pep_var_mod_unique[pvm], ]
-                # Extract the unique modification position
-                pep_var_mod_pos_unique <- unique(modified_peptides_df_pep_var_mod$pep_var_mod_pos)
-                # For each modification
-                for (pvmp in 1:length(pep_var_mod_pos_unique)) {
-                    # Row with the pep_var_mod_pos value
-                    modified_peptides_df_pep_var_mod_pep_var_mod_pos <- modified_peptides_df_pep_var_mod[modified_peptides_df_pep_var_mod$pep_var_mod_pos == pep_var_mod_pos_unique[pvmp], ]
-                    # Search for this in the other file (first for the sequence, then for the peptide modification and finally for the peptide modification position)
-                    same_pep_seq <- modified_peptides_df[["PROT"]][modified_peptides_df[["PROT"]]$pep_seq == pep_seq_unique[ps], ]
-                    same_pep_var_mod <- same_pep_seq[same_pep_seq$pep_var_mod == pep_var_mod_unique[pvm], ]
-                    same_pep_var_mod_pos <- same_pep_var_mod[same_pep_var_mod$pep_var_mod_pos == pep_var_mod_pos_unique[pvmp], ]
-                    # Add this to the rows to discard (if there is a match with the other database)
-                    if (nrow(same_pep_var_mod_pos) > 0) {
-                        row_ID_to_discard <- append(row_ID_to_discard, rownames(modified_peptides_df_pep_var_mod_pep_var_mod_pos))
-                    }
-                }
-            }
-        }
-        # Retrieve the rows to keep
-        true_modified_peptides_df <- modified_peptides_df[["MOD"]][!(rownames(modified_peptides_df[["MOD"]]) %in% row_ID_to_discard), ]
-        
-        
-        
-        
-        
-        # Progress bar
-        setTkProgressBar(program_progress_bar, value = 0.85, title = "Merging files...", label = "85 %")
-        
-        
-        
-        
-        
-        ########## MERGE MODIFIED PEPTIDE SEQUENCES FROM THE MODIFIED PROTEOME WITH THE MODIFIED PEPTIDE SEQUENCES FROM THE NON-MODIFIED PROTEOME
-        # Add the Type column to identify where the peptides come from
-        non_modified_peptides_df[["PROT"]]$Type <- rep("NON-MODIFIED PROTEOME", times = nrow(non_modified_peptides_df[["PROT"]]))
-        if (nrow(true_modified_peptides_df) > 0) {
-            # Add the Type column to identify where the peptides come from
-            true_modified_peptides_df$Type <- rep("MODIFIED PROTEOME", times = nrow(true_modified_peptides_df))
-            # Check the columns of the two dataframes and keep only the common ones...
-            common_columns <- intersect(names(true_modified_peptides_df), names(non_modified_peptides_df[["PROT"]]))
-            true_modified_peptides_df <- true_modified_peptides_df[, names(true_modified_peptides_df) %in% common_columns]
-            non_modified_peptides_df[["PROT"]] <- non_modified_peptides_df[["PROT"]][, names(non_modified_peptides_df[["PROT"]]) %in% common_columns]
-            # Merge the two dataframes
-            non_modified_true_modified_peptides_df <- rbind(true_modified_peptides_df, non_modified_peptides_df[["PROT"]])
-        } else {
-            # Add the Type column to identify where the peptides come from
-            modified_peptides_df[["MOD"]]$Type <- rep("MODIFIED PROTEOME", times = nrow(modified_peptides_df[["MOD"]]))
-            # Check the columns of the two dataframes and keep only the common ones...
-            common_columns <- intersect(names(modified_peptides_df[["MOD"]]), names(non_modified_peptides_df[["PROT"]]))
-            modified_peptides_df[["MOD"]] <- modified_peptides_df[["MOD"]][, names(modified_peptides_df[["MOD"]]) %in% common_columns]
-            non_modified_peptides_df[["PROT"]] <- non_modified_peptides_df[["PROT"]][, names(non_modified_peptides_df[["PROT"]]) %in% common_columns]
-            # Merge the two dataframes
-            non_modified_true_modified_peptides_df <- rbind(modified_peptides_df[["MOD"]], non_modified_peptides_df[["PROT"]])
-        }
-        
-        # Add the class
-        non_modified_true_modified_peptides_df$Class <- rep(class_name, nrow(non_modified_true_modified_peptides_df))
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        # Progress bar
-        setTkProgressBar(program_progress_bar, value = 0.95, title = "Saving files...", label = "95 %")
-        
-        
-        ########## SAVE FILES
-        if (is.null(input_filename[["PROT"]])) {
-            input_filename[["PROT"]] <- "PROT - Input Data"
-        }
-        if (is.null(input_filename[["MOD"]])) {
-            input_filename[["MOD"]] <- "MOD - Input Data"
-        }
-        if (file_format == "csv") {
-            write.csv(true_modified_peptides_df, file = paste("True modified peptides", ".", file_format, sep = ""), row.names = FALSE)
-            write.csv(non_modified_true_modified_peptides_df, file = paste("Non-modified and True modified peptides", ".", file_format, sep = ""), row.names = FALSE)
-            PROT_subfolder <- file.path(output_subfolder, "PROTEOME")
-            dir.create(PROT_subfolder)
-            setwd(PROT_subfolder)
-            write.csv(input_data[["PROT"]], file = paste(input_filename[["PROT"]], ".", file_format, sep = ""), row.names = FALSE)
-            write.csv(non_modified_peptides_df[["PROT"]], file = paste("Non-modified peptides.", file_format, sep = ""), row.names = FALSE)
-            write.csv(modified_peptides_df[["PROT"]], file = paste("Modified peptides.", file_format, sep = ""), row.names = FALSE)
-            write.csv(modified_peptides_df_sequences[["PROT"]], file = paste("Modified peptides (unique sequences).", file_format, sep = ""), row.names = FALSE)
-            MOD_subfolder <- file.path(output_subfolder, "MODIFIED PROTEOME")
-            dir.create(MOD_subfolder)
-            setwd(MOD_subfolder)
-            write.csv(input_data[["MOD"]], file = paste(input_filename[["MOD"]], ".", file_format, sep = ""), row.names = FALSE)
-            write.csv(non_modified_peptides_df[["MOD"]], file = paste("Non-modified peptides.", file_format, sep = ""), row.names = FALSE)
-            write.csv(modified_peptides_df[["MOD"]], file = paste("Modified peptides.", file_format, sep = ""), row.names = FALSE)
-            write.csv(modified_peptides_df_sequences[["MOD"]], file = paste("Modified peptides (unique sequences).", file_format, sep = ""), row.names = FALSE)
-        } else if (file_format == "xlsx" || file_format == "xls") {
-            wb = loadWorkbook(filename = paste("True modified peptides", ".", file_format, sep = ""), create = TRUE)
-            createSheet(wb, name = "True MOD peptides")
-            writeWorksheet(wb, data = true_modified_peptides_df, sheet = "True MOD peptides", header = TRUE)
-            saveWorkbook(wb)
-            
-            wb = loadWorkbook(filename = paste("Non-modified and True modified peptides", ".", file_format, sep = ""), create = TRUE)
-            createSheet(wb, name = "Non-MOD + True MOD")
-            writeWorksheet(wb, data = non_modified_true_modified_peptides_df, sheet = "Non-MOD + True MOD", header = TRUE)
-            saveWorkbook(wb)
-            
-            PROT_subfolder <- file.path(output_subfolder, "PROTEOME")
-            dir.create(PROT_subfolder)
-            setwd(PROT_subfolder)
-            
-            wb = loadWorkbook(filename = paste(input_filename[["PROT"]], ".", file_format, sep = ""), create = TRUE)
-            createSheet(wb, name = "Input data")
-            writeWorksheet(wb, data = input_data[["PROT"]], sheet = "Input data", header = TRUE)
-            saveWorkbook(wb)
-            
-            wb = loadWorkbook(filename = paste("Non-modified peptides.", file_format, sep = ""), create = TRUE)
-            createSheet(wb, name = "Non-modified peptides")
-            writeWorksheet(wb, data = non_modified_peptides_df[["PROT"]], sheet = "Non-modified peptides", header = TRUE)
-            saveWorkbook(wb)
-            
-            wb = loadWorkbook(filename = paste("Modified peptides.", file_format, sep = ""), create = TRUE)
-            createSheet(wb, name = "Modified peptides")
-            writeWorksheet(wb, data = modified_peptides_df[["PROT"]], sheet = "Modified peptides", header = TRUE)
-            saveWorkbook(wb)
-            
-            wb = loadWorkbook(filename = paste("Modified peptides (unique sequences).", file_format, sep = ""), create = TRUE)
-            createSheet(wb, name = "Modified sequences")
-            writeWorksheet(wb, data = modified_peptides_df[["PROT"]], sheet = "Modified sequences", header = TRUE)
-            saveWorkbook(wb)
-            
-            MOD_subfolder <- file.path(output_subfolder, "MODIFIED PROTEOME")
-            dir.create(MOD_subfolder)
-            setwd(MOD_subfolder)
-            wb = loadWorkbook(filename = paste(input_filename[["MOD"]], ".", file_format, sep = ""), create = TRUE)
-            createSheet(wb, name = "Input data")
-            writeWorksheet(wb, data = input_data[["MOD"]], sheet = "Input data", header = TRUE)
-            saveWorkbook(wb)
-            
-            wb = loadWorkbook(filename = paste("Non-modified peptides.", file_format, sep = ""), create = TRUE)
-            createSheet(wb, name = "Non-modified peptides")
-            writeWorksheet(wb, data = non_modified_peptides_df[["MOD"]], sheet = "Non-modified peptides", header = TRUE)
-            saveWorkbook(wb)
-            
-            wb = loadWorkbook(filename = paste("Modified peptides.", file_format, sep = ""), create = TRUE)
-            createSheet(wb, name = "Modified peptides")
-            writeWorksheet(wb, data = modified_peptides_df[["MOD"]], sheet = "Modified peptides", header = TRUE)
-            saveWorkbook(wb)
-            
-            wb = loadWorkbook(filename = paste("Modified peptides (unique sequences).", file_format, sep = ""), create = TRUE)
-            createSheet(wb, name = "Modified sequences")
-            writeWorksheet(wb, data = modified_peptides_df[["MOD"]], sheet = "Modified sequences", header = TRUE)
-            saveWorkbook(wb)
-        }
-        
-        # Progress bar
-        setTkProgressBar(program_progress_bar, value = 1.00, title = "Done!", label = "100 %")
-        close(program_progress_bar)
-        
-        
+        ### Progress bar
+        program_progress_bar <- tkProgressBar(title = "Reading data...", label = "", min = 0, max = 1, initial = 0, width = 400)
+        setTkProgressBar(program_progress_bar, value = 0.01, title = "Reading data...", label = "1 %")
         # Go to the working directory
         setwd(output_folder)
+        # Check if all the columns are present
+        columns_needed <- c("pep_var_mod", "pep_ident", "pep_homol", "pep_score", "prot_acc", "pep_seq", "pep_var_mod_pos")
+        all_the_columns_are_present <- list()
+        all_the_columns_are_present[["PROT"]] <- all(columns_needed %in% colnames(input_data[["PROT"]]))
+        all_the_columns_are_present[["MOD"]] <- all(columns_needed %in% colnames(input_data[["MOD"]]))
+        all_the_columns_are_present <- all(unlist(all_the_columns_are_present))
+        missing_columns_value <- NULL
+        missing_columns <- list()
+        missing_columns[["PROT"]] <- columns_needed[columns_needed %in% colnames(input_data[["PROT"]]) == FALSE]
+        missing_columns[["MOD"]] <- columns_needed[columns_needed %in% colnames(input_data[["MOD"]]) == FALSE]
+        missing_columns <- unlist(missing_columns)
+        if (length(missing_columns) > 0) {
+            for (m in 1:length(missing_columns)) {
+                if (is.null(missing_columns_value)) {
+                    missing_columns_value <- missing_columns[m]
+                } else {
+                    missing_columns_value <- paste0(missing_columns_value, "\n", missing_columns[m])
+                }
+            }
+        }
         
         
-        tkmessageBox(title = "Success!", message = "The process has successfully finished!", icon = "info")
+        
+        
+        
+        # Run only if there is data and the data is correct
+        if (input_folder != "" && length(input_file_list) == 2 && !is.null(unlist(input_data)) && all_the_columns_are_present == TRUE) {
+            ##### Automatically create a subfolder with all the results
+            ## Check if such subfolder exists
+            list_of_directories <- list.dirs(output_folder, full.names = FALSE, recursive = FALSE)
+            ## Check the presence of a MASCOT folder
+            MASCOT_folder_presence <- FALSE
+            if (length(list_of_directories) > 0) {
+                for (dr in 1:length(list_of_directories)) {
+                    if (length(grep("MASCOT", list_of_directories[dr], fixed = TRUE)) > 0) {
+                        MASCOT_folder_presence <- TRUE
+                    }
+                }
+            }
+            ## If it present...
+            if (isTRUE(MASCOT_folder_presence)) {
+                ## Extract the number after the STATISTICS
+                # Number for the newly created folder
+                MASCOT_new_folder_number <- 0
+                # List of already present numbers
+                MASCOT_present_folder_numbers <- integer()
+                # For each folder present...
+                for (dr in 1:length(list_of_directories)) {
+                    # If it is named MASCOT
+                    if (length(grep("MASCOT", list_of_directories[dr], fixed = TRUE)) > 0) {
+                        # Split the name
+                        MASCOT_present_folder_split <- unlist(strsplit(list_of_directories[dr], "MASCOT"))
+                        # Add the number to the list of MASCOT numbers (if it is NA it means that what was following the MASCOT was not a number)
+                        try({
+                            if (!is.na(as.integer(MASCOT_present_folder_split[2]))) {
+                                MASCOT_present_folder_numbers <- append(MASCOT_present_folder_numbers, as.integer(MASCOT_present_folder_split[2]))
+                            } else {
+                                MASCOT_present_folder_numbers <- append(MASCOT_present_folder_numbers, as.integer(0))
+                            }
+                        }, silent = TRUE)
+                    }
+                }
+                # Sort the STATISTICS folder numbers
+                try(MASCOT_present_folder_numbers <- sort(MASCOT_present_folder_numbers))
+                # The new folder number will be the greater + 1
+                try(MASCOT_new_folder_number <- MASCOT_present_folder_numbers[length(MASCOT_present_folder_numbers)] + 1)
+                # Generate the new subfolder
+                MASCOT_subfolder <- paste("MASCOT", MASCOT_new_folder_number)
+                # Estimate the new output folder
+                output_subfolder <- file.path(output_folder, MASCOT_subfolder)
+                # Create the subfolder
+                dir.create(output_subfolder)
+            } else {
+                # If it not present...
+                # Create the folder where to dump the files and go to it...
+                MASCOT_subfolder <- paste("MASCOT", "1")
+                # Estimate the new output folder
+                output_subfolder <- file.path(output_folder, MASCOT_subfolder)
+                # Create the subfolder
+                dir.create(output_subfolder)
+            }
+            # Go to the new working directory
+            setwd(output_subfolder)
+            
+            
+            
+            
+            
+            # Progress bar
+            setTkProgressBar(program_progress_bar, value = 0.05, title = "Splitting data...", label = "5 %")
+            
+            
+            
+            
+            
+            ########## DATA SPLIT: MODIFIED vs NON-MODIFIED
+            # Convert the pep_var_mod column to character
+            input_data[["PROT"]]$pep_var_mod <- as.character(input_data[["PROT"]]$pep_var_mod)
+            input_data[["MOD"]]$pep_var_mod <- as.character(input_data[["MOD"]]$pep_var_mod)
+            # The modified peptides have something in this column
+            modified_peptides_df <- list()
+            modified_peptides_df[["PROT"]] <- input_data[["PROT"]][input_data[["PROT"]]$pep_var_mod != "", ]
+            modified_peptides_df[["MOD"]] <- input_data[["MOD"]][input_data[["MOD"]]$pep_var_mod != "", ]
+            # The unmodified peptides do not have anything as modification
+            non_modified_peptides_df <- list()
+            non_modified_peptides_df[["PROT"]] <- input_data[["PROT"]][input_data[["PROT"]]$pep_var_mod == "", ]
+            non_modified_peptides_df[["MOD"]] <- input_data[["MOD"]][input_data[["MOD"]]$pep_var_mod == "", ]
+            
+            
+            
+            
+            
+            # Progress bar
+            setTkProgressBar(program_progress_bar, value = 0.10, title = "Determining homology and identity...", label = "10 %")
+            
+            
+            
+            
+            
+            ########## IDENTITY
+            # Insert a column named "identity", which contains the information about the identity or the homology of the peptides, according to their scores...
+            # If pep_score is more than the pep_ident, the peptide is flagged as "identity". If this condition is not satisfied check the pep_homol: if pep_homol is present (not NA or > 0) and the pep_score is more than the pep_homol, flag the peptide as "homology". If pep_homol is not present (NA or 0) or the pep_score is not more than the pep_homol, "discard" the peptide.
+            
+            non_modified_peptides_df[["PROT"]]$identity <- non_modified_peptides_df[["PROT"]]$pep_var_mod
+            non_modified_peptides_df[["MOD"]]$identity <- non_modified_peptides_df[["MOD"]]$pep_var_mod
+            modified_peptides_df[["PROT"]]$identity <- modified_peptides_df[["PROT"]]$pep_var_mod
+            modified_peptides_df[["MOD"]]$identity <- modified_peptides_df[["MOD"]]$pep_var_mod
+            
+            for (l in 1:length(non_modified_peptides_df[["PROT"]]$identity)) {
+                if (non_modified_peptides_df[["PROT"]]$pep_score[l] >= non_modified_peptides_df[["PROT"]]$pep_ident[l]) {
+                    non_modified_peptides_df[["PROT"]]$identity[l] <- "identity"
+                } else {
+                    if (!is.na(non_modified_peptides_df[["PROT"]]$pep_homol[l]) && (non_modified_peptides_df[["PROT"]]$pep_score[l] > non_modified_peptides_df[["PROT"]]$pep_homol[l])) {
+                        non_modified_peptides_df[["PROT"]]$identity[l] <- "homology"
+                    } else {
+                        non_modified_peptides_df[["PROT"]]$identity[l] <- "discard"
+                    }
+                }
+            }
+            for (l in 1:length(non_modified_peptides_df[["MOD"]]$identity)) {
+                if (non_modified_peptides_df[["MOD"]]$pep_score[l] >= non_modified_peptides_df[["MOD"]]$pep_ident[l]) {
+                    non_modified_peptides_df[["MOD"]]$identity[l] <- "identity"
+                } else {
+                    if (!is.na(non_modified_peptides_df[["MOD"]]$pep_homol[l]) && (non_modified_peptides_df[["MOD"]]$pep_score[l] > non_modified_peptides_df[["MOD"]]$pep_homol[l])) {
+                        non_modified_peptides_df[["MOD"]]$identity[l] <- "homology"
+                    } else {
+                        non_modified_peptides_df[["MOD"]]$identity[l] <- "discard"
+                    }
+                }
+            }
+            
+            for (l in 1:length(modified_peptides_df[["PROT"]]$identity)) {
+                if (modified_peptides_df[["PROT"]]$pep_score[l] >= modified_peptides_df[["PROT"]]$pep_ident[l]) {
+                    modified_peptides_df[["PROT"]]$identity[l] <- "identity"
+                } else {
+                    if (!is.na(modified_peptides_df[["PROT"]]$pep_homol[l]) && (modified_peptides_df[["PROT"]]$pep_score[l] > modified_peptides_df[["PROT"]]$pep_homol[l])) {
+                        modified_peptides_df[["PROT"]]$identity[l] <- "homology"
+                    } else {
+                        modified_peptides_df[["PROT"]]$identity[l] <- "discard"
+                    }
+                }
+            }
+            for (l in 1:length(modified_peptides_df[["MOD"]]$identity)) {
+                if (modified_peptides_df[["MOD"]]$pep_score[l] >= modified_peptides_df[["MOD"]]$pep_ident[l]) {
+                    modified_peptides_df[["MOD"]]$identity[l] <- "identity"
+                } else {
+                    if (!is.na(modified_peptides_df[["MOD"]]$pep_homol[l]) && (modified_peptides_df[["MOD"]]$pep_score[l] > modified_peptides_df[["MOD"]]$pep_homol[l])) {
+                        modified_peptides_df[["MOD"]]$identity[l] <- "homology"
+                    } else {
+                        modified_peptides_df[["MOD"]]$identity[l] <- "discard"
+                    }
+                }
+            }
+            
+            # Discard the peptides to be discarded
+            non_modified_peptides_df[["PROT"]] <- non_modified_peptides_df[["PROT"]][non_modified_peptides_df[["PROT"]]$identity != "discard", ]
+            non_modified_peptides_df[["MOD"]] <- non_modified_peptides_df[["MOD"]][non_modified_peptides_df[["MOD"]]$identity != "discard", ]
+            modified_peptides_df[["PROT"]] <- modified_peptides_df[["PROT"]][modified_peptides_df[["PROT"]]$identity != "discard", ]
+            modified_peptides_df[["MOD"]] <- modified_peptides_df[["MOD"]][modified_peptides_df[["MOD"]]$identity != "discard", ]
+            
+            
+            
+            
+            
+            # Progress bar
+            setTkProgressBar(program_progress_bar, value = 0.20, title = "Discarding non-modified duplicates...", label = "20 %")
+            
+            
+            
+            
+            
+            ########## REMOVE DUPLICATES (NON-MODIFIED)
+            non_modified_peptides_df[["PROT"]]$prot_acc <- as.character(non_modified_peptides_df[["PROT"]]$prot_acc)
+            non_modified_peptides_df[["MOD"]]$prot_acc <- as.character(non_modified_peptides_df[["MOD"]]$prot_acc)
+            non_modified_peptides_df[["PROT"]]$pep_seq <- as.character(non_modified_peptides_df[["PROT"]]$pep_seq)
+            non_modified_peptides_df[["MOD"]]$pep_seq <- as.character(non_modified_peptides_df[["MOD"]]$pep_seq)
+            
+            # Order the dataframe according to prot_acc, pep_seq, pep_score
+            non_modified_peptides_df[["PROT"]] <- non_modified_peptides_df[["PROT"]][order(non_modified_peptides_df[["PROT"]]$prot_acc, non_modified_peptides_df[["PROT"]]$pep_seq, -non_modified_peptides_df[["PROT"]]$pep_score), ]
+            non_modified_peptides_df[["MOD"]] <- non_modified_peptides_df[["MOD"]][order(non_modified_peptides_df[["MOD"]]$prot_acc, non_modified_peptides_df[["MOD"]]$pep_seq, -non_modified_peptides_df[["MOD"]]$pep_score), ]
+            
+            # Extract the unique values (keep unique prot_acc and pep_seq and only the highest score for prot_acc/pep_seq duplicates)
+            row_ID_to_keep <- list(PROT = vector(), MOD = vector())
+            prot_acc_unique <- list()
+            non_modified_peptides_df_prot_acc <- list()
+            pep_seq_unique <- list()
+            non_modified_peptides_df_prot_acc_pep_seq <- list()
+            final_df <- list()
+            
+            # Determine the unique values of the prot_acc column
+            prot_acc_unique[["PROT"]] <- unique(non_modified_peptides_df[["PROT"]]$prot_acc)
+            prot_acc_unique[["MOD"]] <- unique(non_modified_peptides_df[["MOD"]]$prot_acc)
+            # For each prot_acc...
+            for (pa in 1:length(prot_acc_unique[["PROT"]])) {
+                # Rows with the prot_acc_value
+                non_modified_peptides_df_prot_acc[["PROT"]] <- non_modified_peptides_df[["PROT"]][non_modified_peptides_df[["PROT"]]$prot_acc == prot_acc_unique[["PROT"]][pa],]
+                # Determine the unique values of the pep_seq column
+                pep_seq_unique[["PROT"]] <- unique(non_modified_peptides_df_prot_acc[["PROT"]]$pep_seq)
+                # For each pep_seq...
+                for (ps in 1:length(pep_seq_unique[["PROT"]])) {
+                    # Rows with the pep_seq_value
+                    non_modified_peptides_df_prot_acc_pep_seq[["PROT"]] <- non_modified_peptides_df_prot_acc[["PROT"]][non_modified_peptides_df_prot_acc[["PROT"]]$pep_seq == pep_seq_unique[["PROT"]][ps],]
+                    # Keep only the first (with the highest pep_score) (store the row ID)
+                    row_ID_to_keep[["PROT"]] <- append(row_ID_to_keep[["PROT"]], rownames(non_modified_peptides_df_prot_acc_pep_seq[["PROT"]][1,]))
+                }
+            }
+            # For each prot_acc...
+            for (pa in 1:length(prot_acc_unique[["MOD"]])) {
+                # Rows with the prot_acc_value
+                non_modified_peptides_df_prot_acc[["MOD"]] <- non_modified_peptides_df[["MOD"]][non_modified_peptides_df[["MOD"]]$prot_acc == prot_acc_unique[["MOD"]][pa],]
+                # Determine the unique values of the pep_seq column
+                pep_seq_unique[["MOD"]] <- unique(non_modified_peptides_df_prot_acc[["MOD"]]$pep_seq)
+                # For each pep_seq...
+                for (ps in 1:length(pep_seq_unique[["MOD"]])) {
+                    # Rows with the pep_seq_value
+                    non_modified_peptides_df_prot_acc_pep_seq[["MOD"]] <- non_modified_peptides_df_prot_acc[["MOD"]][non_modified_peptides_df_prot_acc[["MOD"]]$pep_seq == pep_seq_unique[["MOD"]][ps],]
+                    # Keep only the first (with the highest pep_score) (store the row ID)
+                    row_ID_to_keep[["MOD"]] <- append(row_ID_to_keep[["MOD"]], rownames(non_modified_peptides_df_prot_acc_pep_seq[["MOD"]][1,]))
+                }
+            }
+            # Retrieve the rows to keep
+            final_df[["PROT"]] <- non_modified_peptides_df[["PROT"]][rownames(non_modified_peptides_df[["PROT"]]) %in% row_ID_to_keep[["PROT"]], ]
+            non_modified_peptides_df[["PROT"]] <- final_df[["PROT"]]
+            final_df[["MOD"]] <- non_modified_peptides_df[["MOD"]][rownames(non_modified_peptides_df[["MOD"]]) %in% row_ID_to_keep[["MOD"]], ]
+            non_modified_peptides_df[["MOD"]] <- final_df[["MOD"]]
+            
+            # Display the 'identity' first
+            non_modified_peptides_df[["PROT"]] <- non_modified_peptides_df[["PROT"]][order(non_modified_peptides_df[["PROT"]]$identity, non_modified_peptides_df[["PROT"]]$pep_score, non_modified_peptides_df[["PROT"]]$prot_acc, decreasing = TRUE), ]
+            non_modified_peptides_df[["MOD"]] <- non_modified_peptides_df[["MOD"]][order(non_modified_peptides_df[["MOD"]]$identity, non_modified_peptides_df[["MOD"]]$pep_score, non_modified_peptides_df[["MOD"]]$prot_acc, decreasing = TRUE), ]
+            
+            
+            
+            
+            
+            # Progress bar
+            setTkProgressBar(program_progress_bar, value = 0.30, title = "Discarding modified duplicates...", label = "30 %")
+            
+            
+            
+            
+            
+            ########## REMOVE DUPLICATES (MODIFIED)
+            modified_peptides_df[["PROT"]]$prot_acc <- as.character(modified_peptides_df[["PROT"]]$prot_acc)
+            modified_peptides_df[["MOD"]]$prot_acc <- as.character(modified_peptides_df[["MOD"]]$prot_acc)
+            modified_peptides_df[["PROT"]]$pep_seq <- as.character(modified_peptides_df[["PROT"]]$pep_seq)
+            modified_peptides_df[["MOD"]]$pep_seq <- as.character(modified_peptides_df[["MOD"]]$pep_seq)
+            
+            # Order the dataframe according to prot_acc, pep_seq, pep_var_mod, pep_var_mod_pos, pep_score
+            modified_peptides_df[["PROT"]] <- modified_peptides_df[["PROT"]][order(modified_peptides_df[["PROT"]]$prot_acc, modified_peptides_df[["PROT"]]$pep_seq, modified_peptides_df[["PROT"]]$pep_var_mod, modified_peptides_df[["PROT"]]$pep_var_mod_pos, -modified_peptides_df[["PROT"]]$pep_score), ]
+            modified_peptides_df[["MOD"]] <- modified_peptides_df[["MOD"]][order(modified_peptides_df[["MOD"]]$prot_acc, modified_peptides_df[["MOD"]]$pep_seq, modified_peptides_df[["MOD"]]$pep_var_mod, modified_peptides_df[["MOD"]]$pep_var_mod_pos, -modified_peptides_df[["MOD"]]$pep_score), ]
+            
+            # Extract the unique values (keep unique prot_acc, pep_seq, pep_var_mod and pep_var_mod_pos and only the highest score for prot_acc/pep_seq/pep_var_mod/pep_var_mod_pos duplicates)
+            row_ID_to_keep <- list(PROT = vector(), MOD = vector())
+            prot_acc_unique <- list()
+            modified_peptides_df_prot_acc <- list()
+            pep_seq_unique <- list()
+            modified_peptides_df_prot_acc_pep_seq <- list()
+            pep_var_mod_unique <- list()
+            modified_peptides_df_prot_acc_pep_seq_pep_var_mod <- list()
+            pep_var_mod_pos_unique <- list()
+            modified_peptides_df_prot_acc_pep_seq_pep_var_mod_pep_var_mod_pos <- list()
+            final_df <- list()
+            # Determine the unique values of the prot_acc column
+            prot_acc_unique[["PROT"]] <- unique(modified_peptides_df[["PROT"]]$prot_acc)
+            prot_acc_unique[["MOD"]] <- unique(modified_peptides_df[["MOD"]]$prot_acc)
+            # For each prot_acc...
+            for (pa in 1:length(prot_acc_unique[["PROT"]])) {
+                # Rows with the prot_acc_value
+                modified_peptides_df_prot_acc[["PROT"]] <- modified_peptides_df[["PROT"]][modified_peptides_df[["PROT"]]$prot_acc == prot_acc_unique[["PROT"]][pa],]
+                # Determine the unique values of the pep_seq column
+                pep_seq_unique[["PROT"]] <- unique(modified_peptides_df_prot_acc[["PROT"]]$pep_seq)
+                # For each pep_seq...
+                for (ps in 1:length(pep_seq_unique[["PROT"]])) {
+                    # Rows with the pep_seq_value
+                    modified_peptides_df_prot_acc_pep_seq[["PROT"]] <- modified_peptides_df_prot_acc[["PROT"]][modified_peptides_df_prot_acc[["PROT"]]$pep_seq == pep_seq_unique[["PROT"]][ps],]
+                    # Determine the unique values of the pep_var_mod column
+                    pep_var_mod_unique[["PROT"]] <- unique(modified_peptides_df_prot_acc_pep_seq[["PROT"]]$pep_var_mod)
+                    # For each pep_var_mod...
+                    for (pvm in 1:length(pep_var_mod_unique[["PROT"]])) {
+                        # Rows with the pep_var_mod_value
+                        modified_peptides_df_prot_acc_pep_seq_pep_var_mod[["PROT"]] <- modified_peptides_df_prot_acc_pep_seq[["PROT"]][modified_peptides_df_prot_acc_pep_seq[["PROT"]]$pep_var_mod == pep_var_mod_unique[["PROT"]][pvm],]
+                        # Determine the unique values of the pep_var_mod_pos column
+                        modified_peptides_df_prot_acc_pep_seq_pep_var_mod[["PROT"]]$pep_var_mod_pos <- as.character(modified_peptides_df_prot_acc_pep_seq_pep_var_mod[["PROT"]]$pep_var_mod_pos)
+                        pep_var_mod_pos_unique[["PROT"]] <- unique(modified_peptides_df_prot_acc_pep_seq_pep_var_mod[["PROT"]]$pep_var_mod_pos)
+                        # For each pep_var_mod_pos...
+                        for (pvmp in 1:length(pep_var_mod_pos_unique[["PROT"]])) {
+                            # Rows with the pep_var_mod_pos_value
+                            modified_peptides_df_prot_acc_pep_seq_pep_var_mod_pep_var_mod_pos[["PROT"]] <- modified_peptides_df_prot_acc_pep_seq_pep_var_mod[["PROT"]][modified_peptides_df_prot_acc_pep_seq_pep_var_mod[["PROT"]]$pep_var_mod_pos == pep_var_mod_pos_unique[["PROT"]][pvmp],]
+                            # Keep only the first (with the highest pep_score) (store the row ID)
+                            row_ID_to_keep[["PROT"]] <- append(row_ID_to_keep[["PROT"]], rownames(modified_peptides_df_prot_acc_pep_seq_pep_var_mod_pep_var_mod_pos[["PROT"]][1,]))
+                        }
+                    }
+                }
+            }
+            # For each prot_acc...
+            for (pa in 1:length(prot_acc_unique[["MOD"]])) {
+                # Rows with the prot_acc_value
+                modified_peptides_df_prot_acc[["MOD"]] <- modified_peptides_df[["MOD"]][modified_peptides_df[["MOD"]]$prot_acc == prot_acc_unique[["MOD"]][pa],]
+                # Determine the unique values of the pep_seq column
+                pep_seq_unique[["MOD"]] <- unique(modified_peptides_df_prot_acc[["MOD"]]$pep_seq)
+                # For each pep_seq...
+                for (ps in 1:length(pep_seq_unique[["MOD"]])) {
+                    # Rows with the pep_seq_value
+                    modified_peptides_df_prot_acc_pep_seq[["MOD"]] <- modified_peptides_df_prot_acc[["MOD"]][modified_peptides_df_prot_acc[["MOD"]]$pep_seq == pep_seq_unique[["MOD"]][ps],]
+                    # Determine the unique values of the pep_var_mod column
+                    pep_var_mod_unique[["MOD"]] <- unique(modified_peptides_df_prot_acc_pep_seq[["MOD"]]$pep_var_mod)
+                    # For each pep_var_mod...
+                    for (pvm in 1:length(pep_var_mod_unique[["MOD"]])) {
+                        # Rows with the pep_var_mod_value
+                        modified_peptides_df_prot_acc_pep_seq_pep_var_mod[["MOD"]] <- modified_peptides_df_prot_acc_pep_seq[["MOD"]][modified_peptides_df_prot_acc_pep_seq[["MOD"]]$pep_var_mod == pep_var_mod_unique[["MOD"]][pvm],]
+                        # Determine the unique values of the pep_var_mod_pos column
+                        modified_peptides_df_prot_acc_pep_seq_pep_var_mod[["MOD"]]$pep_var_mod_pos <- as.character(modified_peptides_df_prot_acc_pep_seq_pep_var_mod[["MOD"]]$pep_var_mod_pos)
+                        pep_var_mod_pos_unique[["MOD"]] <- unique(modified_peptides_df_prot_acc_pep_seq_pep_var_mod[["MOD"]]$pep_var_mod_pos)
+                        # For each pep_var_mod_pos...
+                        for (pvmp in 1:length(pep_var_mod_pos_unique[["MOD"]])) {
+                            # Rows with the pep_var_mod_pos_value
+                            modified_peptides_df_prot_acc_pep_seq_pep_var_mod_pep_var_mod_pos[["MOD"]] <- modified_peptides_df_prot_acc_pep_seq_pep_var_mod[["MOD"]][modified_peptides_df_prot_acc_pep_seq_pep_var_mod[["MOD"]]$pep_var_mod_pos == pep_var_mod_pos_unique[["MOD"]][pvmp],]
+                            # Keep only the first (with the highest pep_score) (store the row ID)
+                            row_ID_to_keep[["MOD"]] <- append(row_ID_to_keep[["MOD"]], rownames(modified_peptides_df_prot_acc_pep_seq_pep_var_mod_pep_var_mod_pos[["MOD"]][1,]))
+                        }
+                    }
+                }
+            }
+            # Retrieve the rows to keep
+            final_df[["PROT"]] <- modified_peptides_df[["PROT"]][rownames(modified_peptides_df[["PROT"]]) %in% row_ID_to_keep[["PROT"]], ]
+            modified_peptides_df[["PROT"]] <- final_df[["PROT"]]
+            final_df[["MOD"]] <- modified_peptides_df[["MOD"]][rownames(modified_peptides_df[["MOD"]]) %in% row_ID_to_keep[["MOD"]], ]
+            modified_peptides_df[["MOD"]] <- final_df[["MOD"]]
+            
+            # Display the 'identity' first
+            modified_peptides_df[["PROT"]] <- modified_peptides_df[["PROT"]][order(modified_peptides_df[["PROT"]]$identity, modified_peptides_df[["PROT"]]$pep_score, modified_peptides_df[["PROT"]]$prot_acc, decreasing = TRUE), ]
+            modified_peptides_df[["MOD"]] <- modified_peptides_df[["MOD"]][order(modified_peptides_df[["MOD"]]$identity, modified_peptides_df[["MOD"]]$pep_score, modified_peptides_df[["MOD"]]$prot_acc, decreasing = TRUE), ]
+            
+            
+            
+            
+            
+            # Progress bar
+            setTkProgressBar(program_progress_bar, value = 0.60, title = "Discarding modified sequence duplicates...", label = "60 %")
+            
+            
+            
+            
+            
+            ########## REMOVE SEQUENCE DUPLICATES (MODIFIED)
+            modified_peptides_df_sequences <- list()
+            modified_peptides_df_sequences[["PROT"]] <- modified_peptides_df[["PROT"]]
+            modified_peptides_df_sequences[["MOD"]] <- modified_peptides_df[["MOD"]]
+            
+            # Order the dataframe according to prot_acc, pep_seq, pep_var_mod, pep_var_mod_pos, pep_score
+            modified_peptides_df_sequences[["PROT"]] <- modified_peptides_df_sequences[["PROT"]][order(modified_peptides_df_sequences[["PROT"]]$prot_acc, modified_peptides_df_sequences[["PROT"]]$pep_seq, -modified_peptides_df_sequences[["PROT"]]$pep_score), ]
+            modified_peptides_df_sequences[["MOD"]] <- modified_peptides_df_sequences[["MOD"]][order(modified_peptides_df_sequences[["MOD"]]$prot_acc, modified_peptides_df_sequences[["MOD"]]$pep_seq, -modified_peptides_df_sequences[["MOD"]]$pep_score), ]
+            
+            # Extract the unique values (keep unique prot_acc and pep_seq, and only the highest score for prot_acc/pep_seq duplicates)
+            row_ID_to_keep <- list(PROT = vector(), MOD = vector())
+            prot_acc_unique <- list()
+            modified_peptides_df_sequences_prot_acc <- list()
+            pep_seq_unique <- list()
+            modified_peptides_df_sequences_prot_acc_pep_seq <- list()
+            final_df <- list()
+            # Determine the unique values of the prot_acc column
+            prot_acc_unique[["PROT"]] <- unique(modified_peptides_df_sequences[["PROT"]]$prot_acc)
+            prot_acc_unique[["MOD"]] <- unique(modified_peptides_df_sequences[["MOD"]]$prot_acc)
+            # For each prot_acc...
+            for (pa in 1:length(prot_acc_unique[["PROT"]])) {
+                # Rows with the prot_acc_value
+                modified_peptides_df_sequences_prot_acc[["PROT"]] <- modified_peptides_df_sequences[["PROT"]][modified_peptides_df_sequences[["PROT"]]$prot_acc == prot_acc_unique[pa],]
+                # Determine the unique values of the pep_seq column
+                pep_seq_unique[["PROT"]] <- unique(modified_peptides_df_sequences_prot_acc[["PROT"]]$pep_seq)
+                # For each pep_seq...
+                for (ps in 1:length(pep_seq_unique[["PROT"]])) {
+                    # Rows with the pep_seq_value
+                    modified_peptides_df_sequences_prot_acc_pep_seq[["PROT"]] <- modified_peptides_df_sequences_prot_acc[["PROT"]][modified_peptides_df_sequences_prot_acc[["PROT"]]$pep_seq == pep_seq_unique[["PROT"]][ps],]
+                    # Keep only the first (with the highest pep_score) (store the row ID)
+                    row_ID_to_keep[["PROT"]] <- append(row_ID_to_keep[["PROT"]], rownames(modified_peptides_df_sequences_prot_acc_pep_seq[["PROT"]][1,]))
+                }
+            }
+            # For each prot_acc...
+            for (pa in 1:length(prot_acc_unique[["MOD"]])) {
+                # Rows with the prot_acc_value
+                modified_peptides_df_sequences_prot_acc[["MOD"]] <- modified_peptides_df_sequences[["MOD"]][modified_peptides_df_sequences[["MOD"]]$prot_acc == prot_acc_unique[pa],]
+                # Determine the unique values of the pep_seq column
+                pep_seq_unique[["MOD"]] <- unique(modified_peptides_df_sequences_prot_acc[["MOD"]]$pep_seq)
+                # For each pep_seq...
+                for (ps in 1:length(pep_seq_unique[["MOD"]])) {
+                    # Rows with the pep_seq_value
+                    modified_peptides_df_sequences_prot_acc_pep_seq[["MOD"]] <- modified_peptides_df_sequences_prot_acc[["MOD"]][modified_peptides_df_sequences_prot_acc[["MOD"]]$pep_seq == pep_seq_unique[["MOD"]][ps],]
+                    # Keep only the first (with the highest pep_score) (store the row ID)
+                    row_ID_to_keep[["MOD"]] <- append(row_ID_to_keep[["MOD"]], rownames(modified_peptides_df_sequences_prot_acc_pep_seq[["MOD"]][1,]))
+                }
+            }
+            # Retrieve the rows to keep
+            final_df[["PROT"]] <- modified_peptides_df_sequences[["PROT"]][rownames(modified_peptides_df_sequences[["PROT"]]) %in% row_ID_to_keep[["PROT"]], ]
+            modified_peptides_df_sequences[["PROT"]] <- final_df[["PROT"]]
+            final_df[["MOD"]] <- modified_peptides_df_sequences[["MOD"]][rownames(modified_peptides_df_sequences[["MOD"]]) %in% row_ID_to_keep[["MOD"]], ]
+            modified_peptides_df_sequences[["MOD"]] <- final_df[["MOD"]]
+            
+            # Display the 'identity' first
+            modified_peptides_df_sequences[["PROT"]] <- modified_peptides_df_sequences[["PROT"]][order(modified_peptides_df_sequences[["PROT"]]$identity, modified_peptides_df_sequences[["PROT"]]$pep_score, modified_peptides_df_sequences[["PROT"]]$prot_acc, decreasing = TRUE), ]
+            modified_peptides_df_sequences[["MOD"]] <- modified_peptides_df_sequences[["MOD"]][order(modified_peptides_df_sequences[["MOD"]]$identity, modified_peptides_df_sequences[["MOD"]]$pep_score, modified_peptides_df_sequences[["MOD"]]$prot_acc, decreasing = TRUE), ]
+            
+            
+            
+            
+            
+            # Progress bar
+            setTkProgressBar(program_progress_bar, value = 0.70, title = "Determining the true modified peptides...", label = "70 %")
+            
+            
+            
+            
+            
+            ########## COMPARE THE MODIFIED AND THE NON-MODIFIED PROTEOMES TO RETRIEVE THE TRUE MODIFIED PEPIDES
+            # Check the peptide sequence (pep_seq) and then the modification position (pep_var_mod_pos)
+            modified_peptides_df[["PROT"]]$pep_var_mod_pos <- as.character(modified_peptides_df[["PROT"]]$pep_var_mod_pos)
+            modified_peptides_df[["MOD"]]$pep_var_mod_pos <- as.character(modified_peptides_df[["MOD"]]$pep_var_mod_pos)
+            row_ID_to_discard <- vector()
+            # Extract the unique sequences from the modified proteome
+            pep_seq_unique <- unique(modified_peptides_df[["MOD"]]$pep_seq)
+            # For each sequence...
+            for (ps in 1:length(pep_seq_unique)) {
+                # Rows with the pep_seq value
+                modified_peptides_df_pep_seq <- modified_peptides_df[["MOD"]][modified_peptides_df[["MOD"]]$pep_seq == pep_seq_unique[ps], ]
+                # Extract the unique modification
+                pep_var_mod_unique <- unique(modified_peptides_df_pep_seq$pep_var_mod)
+                # For each pep_var_mod...
+                for (pvm in 1:length(pep_var_mod_unique)) {
+                    # Rows with the pep_var_mod value
+                    modified_peptides_df_pep_var_mod <- modified_peptides_df_pep_seq[modified_peptides_df_pep_seq$pep_var_mod == pep_var_mod_unique[pvm], ]
+                    # Extract the unique modification position
+                    pep_var_mod_pos_unique <- unique(modified_peptides_df_pep_var_mod$pep_var_mod_pos)
+                    # For each modification
+                    for (pvmp in 1:length(pep_var_mod_pos_unique)) {
+                        # Row with the pep_var_mod_pos value
+                        modified_peptides_df_pep_var_mod_pep_var_mod_pos <- modified_peptides_df_pep_var_mod[modified_peptides_df_pep_var_mod$pep_var_mod_pos == pep_var_mod_pos_unique[pvmp], ]
+                        # Search for this in the other file (first for the sequence, then for the peptide modification and finally for the peptide modification position)
+                        same_pep_seq <- modified_peptides_df[["PROT"]][modified_peptides_df[["PROT"]]$pep_seq == pep_seq_unique[ps], ]
+                        same_pep_var_mod <- same_pep_seq[same_pep_seq$pep_var_mod == pep_var_mod_unique[pvm], ]
+                        same_pep_var_mod_pos <- same_pep_var_mod[same_pep_var_mod$pep_var_mod_pos == pep_var_mod_pos_unique[pvmp], ]
+                        # Add this to the rows to discard (if there is a match with the other database)
+                        if (nrow(same_pep_var_mod_pos) > 0) {
+                            row_ID_to_discard <- append(row_ID_to_discard, rownames(modified_peptides_df_pep_var_mod_pep_var_mod_pos))
+                        }
+                    }
+                }
+            }
+            # Retrieve the rows to keep
+            true_modified_peptides_df <- modified_peptides_df[["MOD"]][!(rownames(modified_peptides_df[["MOD"]]) %in% row_ID_to_discard), ]
+            
+            
+            
+            
+            
+            # Progress bar
+            setTkProgressBar(program_progress_bar, value = 0.85, title = "Merging files...", label = "85 %")
+            
+            
+            
+            
+            
+            ########## MERGE MODIFIED PEPTIDE SEQUENCES FROM THE MODIFIED PROTEOME WITH THE MODIFIED PEPTIDE SEQUENCES FROM THE NON-MODIFIED PROTEOME
+            # Add the Type column to identify where the peptides come from
+            non_modified_peptides_df[["PROT"]]$Type <- rep("NON-MODIFIED PROTEOME", times = nrow(non_modified_peptides_df[["PROT"]]))
+            if (nrow(true_modified_peptides_df) > 0) {
+                # Add the Type column to identify where the peptides come from
+                true_modified_peptides_df$Type <- rep("MODIFIED PROTEOME", times = nrow(true_modified_peptides_df))
+                # Check the columns of the two dataframes and keep only the common ones...
+                common_columns <- intersect(names(true_modified_peptides_df), names(non_modified_peptides_df[["PROT"]]))
+                true_modified_peptides_df <- true_modified_peptides_df[, names(true_modified_peptides_df) %in% common_columns]
+                non_modified_peptides_df[["PROT"]] <- non_modified_peptides_df[["PROT"]][, names(non_modified_peptides_df[["PROT"]]) %in% common_columns]
+                # Merge the two dataframes
+                non_modified_true_modified_peptides_df <- rbind(true_modified_peptides_df, non_modified_peptides_df[["PROT"]])
+            } else {
+                # Add the Type column to identify where the peptides come from
+                modified_peptides_df[["MOD"]]$Type <- rep("MODIFIED PROTEOME", times = nrow(modified_peptides_df[["MOD"]]))
+                # Check the columns of the two dataframes and keep only the common ones...
+                common_columns <- intersect(names(modified_peptides_df[["MOD"]]), names(non_modified_peptides_df[["PROT"]]))
+                modified_peptides_df[["MOD"]] <- modified_peptides_df[["MOD"]][, names(modified_peptides_df[["MOD"]]) %in% common_columns]
+                non_modified_peptides_df[["PROT"]] <- non_modified_peptides_df[["PROT"]][, names(non_modified_peptides_df[["PROT"]]) %in% common_columns]
+                # Merge the two dataframes
+                non_modified_true_modified_peptides_df <- rbind(modified_peptides_df[["MOD"]], non_modified_peptides_df[["PROT"]])
+            }
+            
+            # Add the class
+            non_modified_true_modified_peptides_df$Class <- rep(class_name, nrow(non_modified_true_modified_peptides_df))
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            # Progress bar
+            setTkProgressBar(program_progress_bar, value = 0.95, title = "Saving files...", label = "95 %")
+            
+            
+            ########## SAVE FILES
+            if (is.null(input_filename[["PROT"]])) {
+                input_filename[["PROT"]] <- "PROT - Input Data"
+            }
+            if (is.null(input_filename[["MOD"]])) {
+                input_filename[["MOD"]] <- "MOD - Input Data"
+            }
+            if (file_format == "csv") {
+                write.csv(true_modified_peptides_df, file = paste("True modified peptides", ".", file_format, sep = ""), row.names = FALSE)
+                write.csv(non_modified_true_modified_peptides_df, file = paste("Non-modified and True modified peptides", ".", file_format, sep = ""), row.names = FALSE)
+                PROT_subfolder <- file.path(output_subfolder, "PROTEOME")
+                dir.create(PROT_subfolder)
+                setwd(PROT_subfolder)
+                write.csv(input_data[["PROT"]], file = paste(input_filename[["PROT"]], ".", file_format, sep = ""), row.names = FALSE)
+                write.csv(non_modified_peptides_df[["PROT"]], file = paste("Non-modified peptides.", file_format, sep = ""), row.names = FALSE)
+                write.csv(modified_peptides_df[["PROT"]], file = paste("Modified peptides.", file_format, sep = ""), row.names = FALSE)
+                write.csv(modified_peptides_df_sequences[["PROT"]], file = paste("Modified peptides (unique sequences).", file_format, sep = ""), row.names = FALSE)
+                MOD_subfolder <- file.path(output_subfolder, "MODIFIED PROTEOME")
+                dir.create(MOD_subfolder)
+                setwd(MOD_subfolder)
+                write.csv(input_data[["MOD"]], file = paste(input_filename[["MOD"]], ".", file_format, sep = ""), row.names = FALSE)
+                write.csv(non_modified_peptides_df[["MOD"]], file = paste("Non-modified peptides.", file_format, sep = ""), row.names = FALSE)
+                write.csv(modified_peptides_df[["MOD"]], file = paste("Modified peptides.", file_format, sep = ""), row.names = FALSE)
+                write.csv(modified_peptides_df_sequences[["MOD"]], file = paste("Modified peptides (unique sequences).", file_format, sep = ""), row.names = FALSE)
+            } else if (file_format == "xlsx" || file_format == "xls") {
+                writeWorksheetToFile(file = paste0("True modified peptides", ".", file_format), data = true_modified_peptides_df, sheet = "True MOD peptides", header = TRUE, clearSheets = TRUE)
+                
+                writeWorksheetToFile(file = paste0("Non-modified and True modified peptides", ".", file_format), data = non_modified_true_modified_peptides_df, sheet = "Non-MOD + True MOD", header = TRUE, clearSheets = TRUE)
+                
+                PROT_subfolder <- file.path(output_subfolder, "PROTEOME")
+                dir.create(PROT_subfolder)
+                setwd(PROT_subfolder)
+                
+                writeWorksheetToFile(file = paste0(input_filename[["PROT"]], ".", file_format), data = input_data[["PROT"]], sheet = "Input data", header = TRUE, clearSheets = TRUE)
+                
+                writeWorksheetToFile(file = paste0("Non-modified peptides.", file_format), data = non_modified_peptides_df[["PROT"]], sheet = "Non-modified peptides", header = TRUE, clearSheets = TRUE)
+                
+                writeWorksheetToFile(file = paste0("Modified peptides.", file_format), data = modified_peptides_df[["PROT"]], sheet = "Modified peptides", header = TRUE, clearSheets = TRUE)
+                
+                writeWorksheetToFile(file = paste0("Modified peptides (unique sequences).", file_format), data = modified_peptides_df[["PROT"]], sheet = "Modified sequences", header = TRUE, clearSheets = TRUE)
+                
+                MOD_subfolder <- file.path(output_subfolder, "MODIFIED PROTEOME")
+                dir.create(MOD_subfolder)
+                setwd(MOD_subfolder)
+                writeWorksheetToFile(file = paste0(input_filename[["MOD"]], ".", file_format), data = input_data[["MOD"]], sheet = "Input data", header = TRUE, clearSheets = TRUE)
+                
+                writeWorksheetToFile(file = paste0("Non-modified peptides.", file_format), data = non_modified_peptides_df[["MOD"]], sheet = "Non-modified peptides", header = TRUE, clearSheets = TRUE)
+                
+                writeWorksheetToFile(file = paste0("Modified peptides.", file_format), data = modified_peptides_df[["MOD"]], sheet = "Modified peptides", header = TRUE, clearSheets = TRUE)
+                
+                writeWorksheetToFile(file = paste0("Modified peptides (unique sequences).", file_format), data = modified_peptides_df[["MOD"]], sheet = "Modified sequences", header = TRUE, clearSheets = TRUE)
+            }
+            
+            # Progress bar
+            setTkProgressBar(program_progress_bar, value = 1.00, title = "Done!", label = "100 %")
+            close(program_progress_bar)
+            
+            
+            # Go to the working directory
+            setwd(output_folder)
+            
+            
+            tkmessageBox(title = "Success!", message = "The process has successfully finished!", icon = "info")
+        } else {
+            close(program_progress_bar)
+            if (input_folder == "" || is.null(unlist(input_data))) {
+                ########## NO INPUT FILE
+                tkmessageBox(title = "No input file selected!", message = "No input file has been selected!", icon = "warning")
+            }
+            if (all_the_columns_are_present == FALSE) {
+                ########## MISSING DATA
+                tkmessageBox(title = "Missing data!", message = paste0("Some data is missing from the selected input file!\n\n\n", missing_columns_value), icon = "warning")
+            }
+        }
     } else {
-        close(program_progress_bar)
-        if (input_folder == "" || is.null(unlist(input_data))) {
-            ########## NO INPUT FILE
-            tkmessageBox(title = "No input file selected!", message = "No input file has been selected!", icon = "warning")
-        }
-        if (all_the_columns_are_present == FALSE) {
-            ########## MISSING DATA
-            tkmessageBox(title = "Missing data!", message = paste0("Some data is missing from the selected input file!\n\n\n", missing_columns_value), icon = "warning")
-        }
+        ########## MISSING DATA
+        tkmessageBox(title = "Data not imported", message = "Import the data before running the software", icon = "warning")
     }
 }
 
