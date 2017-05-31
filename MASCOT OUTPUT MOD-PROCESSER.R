@@ -11,7 +11,7 @@ rm(list = ls())
 
 
 ### Program version (Specified by the program writer!!!!)
-R_script_version <- "2017.05.31.0"
+R_script_version <- "2017.05.31.1"
 ### GitHub URL where the R file is
 github_R_url <- "https://raw.githubusercontent.com/gmanuel89/Mascot-Output-MOD-Processer/master/MASCOT%20OUTPUT%20MOD-PROCESSER.R"
 ### GitHub URL of the program's WIKI
@@ -855,7 +855,7 @@ run_mascot_output_modprocesser_function <- function() {
             # For each prot_acc...
             for (pa in 1:length(prot_acc_unique[["PROT"]])) {
                 # Rows with the prot_acc_value
-                modified_peptides_df_sequences_prot_acc[["PROT"]] <- modified_peptides_df_sequences[["PROT"]][modified_peptides_df_sequences[["PROT"]]$prot_acc == prot_acc_unique[pa],]
+                modified_peptides_df_sequences_prot_acc[["PROT"]] <- modified_peptides_df_sequences[["PROT"]][modified_peptides_df_sequences[["PROT"]]$prot_acc == prot_acc_unique[["PROT"]][pa],]
                 # Determine the unique values of the pep_seq column
                 pep_seq_unique[["PROT"]] <- unique(modified_peptides_df_sequences_prot_acc[["PROT"]]$pep_seq)
                 # For each pep_seq...
@@ -869,7 +869,7 @@ run_mascot_output_modprocesser_function <- function() {
             # For each prot_acc...
             for (pa in 1:length(prot_acc_unique[["MOD"]])) {
                 # Rows with the prot_acc_value
-                modified_peptides_df_sequences_prot_acc[["MOD"]] <- modified_peptides_df_sequences[["MOD"]][modified_peptides_df_sequences[["MOD"]]$prot_acc == prot_acc_unique[pa],]
+                modified_peptides_df_sequences_prot_acc[["MOD"]] <- modified_peptides_df_sequences[["MOD"]][modified_peptides_df_sequences[["MOD"]]$prot_acc == prot_acc_unique[["MOD"]][pa],]
                 # Determine the unique values of the pep_seq column
                 pep_seq_unique[["MOD"]] <- unique(modified_peptides_df_sequences_prot_acc[["MOD"]]$pep_seq)
                 # For each pep_seq...
