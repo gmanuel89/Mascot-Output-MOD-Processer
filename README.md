@@ -9,6 +9,17 @@ https://www.r-project.org/
 
 ***
 
+## Platform(s) tested
+Ubuntu Linux 16.04 x64 - R 3.4.0
+
+Fedora Linux 25 x64 - R 3.4.0
+
+Microsoft Windows 7 x64 - R 3.4.0
+
+Microsoft Windows 10 x64 - R 3.4.0
+
+***
+
 ## Scope of the software
 The software imports the output csv files yielded by Mascot, one corresponding to the whole (unmodified) proteome and the other corresponding to the proteome that underwent modification. It automatically discards all the information that Mascot adds and keeps only the matrix for the analysis.
 
