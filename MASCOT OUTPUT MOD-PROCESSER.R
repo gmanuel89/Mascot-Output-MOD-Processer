@@ -1004,4 +1004,362 @@ mascot_output_mod_processer <- function() {
                         modified_peptides_df_pep_var_mod <- modified_peptides_df_pep_seq[modified_peptides_df_pep_seq$pep_var_mod == pep_var_mod_unique[pvm], ]
                         # Extract the unique modification position
                         pep_var_mod_pos_unique <- unique(modified_peptides_df_pep_var_mod$pep_var_mod_pos)
-                        # For each modificat
+                        # For each modification
+                        for (pvmp in 1:length(pep_var_mod_pos_unique)) {
+                            # Row with the pep_var_mod_pos value
+                            modified_peptides_df_pep_var_mod_pep_var_mod_pos <- modified_peptides_df_pep_var_mod[modified_peptides_df_pep_var_mod$pep_var_mod_pos == pep_var_mod_pos_unique[pvmp], ]
+                            # Search for this in the other file (first for the sequence, then for the peptide modification and finally for the peptide modification position)
+                            same_pep_seq <- modified_peptides_df[["PROT"]][modified_peptides_df[["PROT"]]$pep_seq == pep_seq_unique[ps], ]
+                            same_pep_var_mod <- same_pep_seq[same_pep_seq$pep_var_mod == pep_var_mod_unique[pvm], ]
+                            same_pep_var_mod_pos <- same_pep_var_mod[same_pep_var_mod$pep_var_mod_pos == pep_var_mod_pos_unique[pvmp], ]
+                            # Add this to the rows to discard (if there is a match with the other database)
+                            if (nrow(same_pep_var_mod_pos) > 0) {
+                                row_ID_to_discard <- append(row_ID_to_discard, rownames(modified_peptides_df_pep_var_mod_pep_var_mod_pos))
+                            }
+                        }
+                    }
+                }
+                # Retrieve the rows to keep
+                true_modified_peptides_df <- modified_peptides_df[["MOD"]][!(rownames(modified_peptides_df[["MOD"]]) %in% row_ID_to_discard), ]
+                
+                
+                
+                
+                
+                # Progress bar
+                setTkProgressBar(program_progress_bar, value = 0.85, title = "Merging files...", label = "85 %")
+                
+                
+                
+                
+                
+                ########## MERGE MODIFIED PEPTIDE SEQUENCES FROM THE MODIFIED PROTEOME WITH THE MODIFIED PEPTIDE SEQUENCES FROM THE NON-MODIFIED PROTEOME
+                # Add the Type column to identify where the peptides come from
+                non_modified_peptides_df[["PROT"]]$Type <- rep("NON-MODIFIED PROTEOME", times = nrow(non_modified_peptides_df[["PROT"]]))
+                if (nrow(true_modified_peptides_df) > 0) {
+                    # Add the Type column to identify where the peptides come from
+                    true_modified_peptides_df$Type <- rep("MODIFIED PROTEOME", times = nrow(true_modified_peptides_df))
+                    # Check the columns of the two dataframes and keep only the common ones...
+                    common_columns <- intersect(names(true_modified_peptides_df), names(non_modified_peptides_df[["PROT"]]))
+                    true_modified_peptides_df <- true_modified_peptides_df[, names(true_modified_peptides_df) %in% common_columns]
+                    non_modified_peptides_df[["PROT"]] <- non_modified_peptides_df[["PROT"]][, names(non_modified_peptides_df[["PROT"]]) %in% common_columns]
+                    # Merge the two dataframes
+                    non_modified_true_modified_peptides_df <- rbind(true_modified_peptides_df, non_modified_peptides_df[["PROT"]])
+                } else {
+                    # Add the Type column to identify where the peptides come from
+                    modified_peptides_df[["MOD"]]$Type <- rep("MODIFIED PROTEOME", times = nrow(modified_peptides_df[["MOD"]]))
+                    # Check the columns of the two dataframes and keep only the common ones...
+                    common_columns <- intersect(names(modified_peptides_df[["MOD"]]), names(non_modified_peptides_df[["PROT"]]))
+                    modified_peptides_df[["MOD"]] <- modified_peptides_df[["MOD"]][, names(modified_peptides_df[["MOD"]]) %in% common_columns]
+                    non_modified_peptides_df[["PROT"]] <- non_modified_peptides_df[["PROT"]][, names(non_modified_peptides_df[["PROT"]]) %in% common_columns]
+                    # Merge the two dataframes
+                    non_modified_true_modified_peptides_df <- rbind(modified_peptides_df[["MOD"]], non_modified_peptides_df[["PROT"]])
+                }
+                
+                # Add the class
+                non_modified_true_modified_peptides_df$Class <- rep(class_name, nrow(non_modified_true_modified_peptides_df))
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                # Progress bar
+                setTkProgressBar(program_progress_bar, value = 0.95, title = "Saving files...", label = "95 %")
+                
+                
+                ########## SAVE FILES
+                if (is.null(input_filename[["PROT"]])) {
+                    input_filename[["PROT"]] <- "PROT - Input Data"
+                }
+                if (is.null(input_filename[["MOD"]])) {
+                    input_filename[["MOD"]] <- "MOD - Input Data"
+                }
+                if (file_format == "csv") {
+                    write.csv(true_modified_peptides_df, file = paste("True modified peptides", ".", file_format, sep = ""), row.names = FALSE)
+                    write.csv(non_modified_true_modified_peptides_df, file = paste("Non-modified and True modified peptides", ".", file_format, sep = ""), row.names = FALSE)
+                    PROT_subfolder <- file.path(output_subfolder, "PROTEOME")
+                    dir.create(PROT_subfolder)
+                    setwd(PROT_subfolder)
+                    write.csv(input_data[["PROT"]], file = paste(input_filename[["PROT"]], ".", file_format, sep = ""), row.names = FALSE)
+                    write.csv(non_modified_peptides_df[["PROT"]], file = paste("Non-modified peptides.", file_format, sep = ""), row.names = FALSE)
+                    write.csv(modified_peptides_df[["PROT"]], file = paste("Modified peptides.", file_format, sep = ""), row.names = FALSE)
+                    write.csv(modified_peptides_df_sequences[["PROT"]], file = paste("Modified peptides (unique sequences).", file_format, sep = ""), row.names = FALSE)
+                    MOD_subfolder <- file.path(output_subfolder, "MODIFIED PROTEOME")
+                    dir.create(MOD_subfolder)
+                    setwd(MOD_subfolder)
+                    write.csv(input_data[["MOD"]], file = paste(input_filename[["MOD"]], ".", file_format, sep = ""), row.names = FALSE)
+                    write.csv(non_modified_peptides_df[["MOD"]], file = paste("Non-modified peptides.", file_format, sep = ""), row.names = FALSE)
+                    write.csv(modified_peptides_df[["MOD"]], file = paste("Modified peptides.", file_format, sep = ""), row.names = FALSE)
+                    write.csv(modified_peptides_df_sequences[["MOD"]], file = paste("Modified peptides (unique sequences).", file_format, sep = ""), row.names = FALSE)
+                } else if (file_format == "xlsx" || file_format == "xls") {
+                    writeWorksheetToFile(file = paste0("True modified peptides", ".", file_format), data = true_modified_peptides_df, sheet = "True MOD peptides", header = TRUE, clearSheets = TRUE)
+                    
+                    writeWorksheetToFile(file = paste0("Non-modified and True modified peptides", ".", file_format), data = non_modified_true_modified_peptides_df, sheet = "Non-MOD + True MOD", header = TRUE, clearSheets = TRUE)
+                    
+                    PROT_subfolder <- file.path(output_subfolder, "PROTEOME")
+                    dir.create(PROT_subfolder)
+                    setwd(PROT_subfolder)
+                    
+                    writeWorksheetToFile(file = paste0(input_filename[["PROT"]], ".", file_format), data = input_data[["PROT"]], sheet = "Input data", header = TRUE, clearSheets = TRUE)
+                    
+                    writeWorksheetToFile(file = paste0("Non-modified peptides.", file_format), data = non_modified_peptides_df[["PROT"]], sheet = "Non-modified peptides", header = TRUE, clearSheets = TRUE)
+                    
+                    writeWorksheetToFile(file = paste0("Modified peptides.", file_format), data = modified_peptides_df[["PROT"]], sheet = "Modified peptides", header = TRUE, clearSheets = TRUE)
+                    
+                    writeWorksheetToFile(file = paste0("Modified peptides (unique sequences).", file_format), data = modified_peptides_df[["PROT"]], sheet = "Modified sequences", header = TRUE, clearSheets = TRUE)
+                    
+                    MOD_subfolder <- file.path(output_subfolder, "MODIFIED PROTEOME")
+                    dir.create(MOD_subfolder)
+                    setwd(MOD_subfolder)
+                    writeWorksheetToFile(file = paste0(input_filename[["MOD"]], ".", file_format), data = input_data[["MOD"]], sheet = "Input data", header = TRUE, clearSheets = TRUE)
+                    
+                    writeWorksheetToFile(file = paste0("Non-modified peptides.", file_format), data = non_modified_peptides_df[["MOD"]], sheet = "Non-modified peptides", header = TRUE, clearSheets = TRUE)
+                    
+                    writeWorksheetToFile(file = paste0("Modified peptides.", file_format), data = modified_peptides_df[["MOD"]], sheet = "Modified peptides", header = TRUE, clearSheets = TRUE)
+                    
+                    writeWorksheetToFile(file = paste0("Modified peptides (unique sequences).", file_format), data = modified_peptides_df[["MOD"]], sheet = "Modified sequences", header = TRUE, clearSheets = TRUE)
+                }
+                
+                # Progress bar
+                setTkProgressBar(program_progress_bar, value = 1.00, title = "Done!", label = "100 %")
+                close(program_progress_bar)
+                
+                
+                # Go to the working directory
+                setwd(output_folder)
+                
+                
+                tkmessageBox(title = "Success!", message = "The process has successfully finished!", icon = "info")
+            } else {
+                close(program_progress_bar)
+                if (input_folder == "" || is.null(unlist(input_data))) {
+                    ########## NO INPUT FILE
+                    tkmessageBox(title = "No input file selected!", message = "No input file has been selected!", icon = "warning")
+                }
+                if (all_the_columns_are_present == FALSE) {
+                    ########## MISSING DATA
+                    tkmessageBox(title = "Missing data!", message = paste0("Some data is missing from the selected input file!\n\n\n", missing_columns_value), icon = "warning")
+                }
+            }
+        } else {
+            ########## MISSING DATA
+            tkmessageBox(title = "Data not imported", message = "Import the data before running the software", icon = "warning")
+        }
+    }
+    
+    ##### Show info function
+    show_info_function <- function() {
+        if (Sys.info()[1] == "Linux") {
+            system(command = paste("xdg-open", github_wiki_url), intern = FALSE)
+        } else if (Sys.info()[1] == "Darwin") {
+            system(command = paste("open", github_wiki_url), intern = FALSE)
+        } else if (Sys.info()[1] == "Windows") {
+            system(command = paste("cmd /c start", github_wiki_url), intern = FALSE)
+        }
+    }
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    ###############################################################################
+    
+    
+    
+    
+    ##################################################################### WINDOW GUI
+    
+    
+    
+    ######################## GUI
+    
+    # Get system info (Platform - Release - Version (- Linux Distro))
+    system_os = Sys.info()[1]
+    os_release = Sys.info()[2]
+    os_version = Sys.info()[3]
+    
+    ### Get the screen resolution
+    try({
+        # Windows
+        if (system_os == "Windows") {
+            # Get system info
+            screen_info <- system("wmic path Win32_VideoController get VideoModeDescription", intern = TRUE)[2]
+            # Get the resolution
+            screen_resolution <- unlist(strsplit(screen_info, "x"))
+            # Retrieve the values
+            screen_height <- as.numeric(screen_resolution[2])
+            screen_width <- as.numeric(screen_resolution[1])
+        } else if (system_os == "Linux") {
+            # Get system info
+            screen_info <- system("xdpyinfo -display :0", intern = TRUE)
+            # Get the resolution
+            screen_resolution <- screen_info[which(screen_info == "screen #0:") + 1]
+            screen_resolution <- unlist(strsplit(screen_resolution, "dimensions: ")[1])
+            screen_resolution <- unlist(strsplit(screen_resolution, "pixels"))[2]
+            # Retrieve the wto dimensions...
+            screen_width <- as.numeric(unlist(strsplit(screen_resolution, "x"))[1])
+            screen_height <- as.numeric(unlist(strsplit(screen_resolution, "x"))[2])
+        }
+    }, silent = TRUE)
+    
+    
+    
+    ### FONTS
+    # Default sizes (determined on a 1680x1050 screen) (in order to make them adjust to the size screen, the screen resolution should be retrieved)
+    title_font_size_default <- 24
+    other_font_size_default <- 11
+    title_font_size <- title_font_size_default
+    other_font_size <- other_font_size_default
+    
+    # Adjust fonts size according to the pixel number
+    try({
+        # Windows
+        if (system_os == "Windows") {
+            # Determine the font size according to the resolution
+            total_number_of_pixels <- screen_width * screen_height
+            # Determine the scaling factor (according to a complex formula)
+            scaling_factor_title_font <- as.numeric((0.03611 * total_number_of_pixels) + 9803.1254)
+            scaling_factor_other_font <- as.numeric((0.07757 * total_number_of_pixels) + 23529.8386)
+            title_font_size <- as.integer(round(total_number_of_pixels / scaling_factor_title_font))
+            other_font_size <- as.integer(round(total_number_of_pixels / scaling_factor_other_font))
+        } else if (system_os == "Linux") {
+            # Linux
+            # Determine the font size according to the resolution
+            total_number_of_pixels <- screen_width * screen_height
+            # Determine the scaling factor (according to a complex formula)
+            scaling_factor_title_font <- as.numeric((0.03611 * total_number_of_pixels) + 9803.1254)
+            scaling_factor_other_font <- as.numeric((0.07757 * total_number_of_pixels) + 23529.8386)
+            title_font_size <- as.integer(round(total_number_of_pixels / scaling_factor_title_font))
+            other_font_size <- as.integer(round(total_number_of_pixels / scaling_factor_other_font))
+        } else if (system_os == "Darwin") {
+            # macOS
+            print("Using default font sizes...")
+        }
+        # Go back to defaults if there are NAs
+        if (is.na(title_font_size)) {
+            title_font_size <- title_font_size_default
+        }
+        if (is.na(other_font_size)) {
+            other_font_size <- other_font_size_default
+        }
+    }, silent = TRUE)
+    
+    # Define the fonts
+    # Windows
+    if (system_os == "Windows") {
+        garamond_title_bold = tkfont.create(family = "Garamond", size = title_font_size, weight = "bold")
+        garamond_other_normal = tkfont.create(family = "Garamond", size = other_font_size, weight = "normal")
+        arial_title_bold = tkfont.create(family = "Arial", size = title_font_size, weight = "bold")
+        arial_other_normal = tkfont.create(family = "Arial", size = other_font_size, weight = "normal")
+        trebuchet_title_bold = tkfont.create(family = "Trebuchet MS", size = title_font_size, weight = "bold")
+        trebuchet_other_normal = tkfont.create(family = "Trebuchet MS", size = other_font_size, weight = "normal")
+        trebuchet_other_bold = tkfont.create(family = "Trebuchet MS", size = other_font_size, weight = "bold")
+        # Use them in the GUI
+        title_font = trebuchet_title_bold
+        label_font = trebuchet_other_normal
+        entry_font = trebuchet_other_normal
+        button_font = trebuchet_other_bold
+    } else if (system_os == "Linux") {
+        #Linux
+        # Ubuntu
+        if (length(grep("Ubuntu", os_version, ignore.case = TRUE)) > 0) {
+            # Define the fonts
+            ubuntu_title_bold = tkfont.create(family = "Ubuntu", size = (title_font_size + 2), weight = "bold")
+            ubuntu_other_normal = tkfont.create(family = "Ubuntu", size = (other_font_size + 1), weight = "normal")
+            ubuntu_other_bold = tkfont.create(family = "Ubuntu", size = (other_font_size + 1), weight = "bold")
+            liberation_title_bold = tkfont.create(family = "Liberation Sans", size = title_font_size, weight = "bold")
+            liberation_other_normal = tkfont.create(family = "Liberation Sans", size = other_font_size, weight = "normal")
+            liberation_other_bold = tkfont.create(family = "Liberation Sans", size = other_font_size, weight = "bold")
+            bitstream_charter_title_bold = tkfont.create(family = "Bitstream Charter", size = title_font_size, weight = "bold")
+            bitstream_charter_other_normal = tkfont.create(family = "Bitstream Charter", size = other_font_size, weight = "normal")
+            bitstream_charter_other_bold = tkfont.create(family = "Bitstream Charter", size = other_font_size, weight = "bold")
+            # Use them in the GUI
+            title_font = ubuntu_title_bold
+            label_font = ubuntu_other_normal
+            entry_font = ubuntu_other_normal
+            button_font = ubuntu_other_bold
+        } else if (length(grep("Fedora", os_version, ignore.case = TRUE)) > 0) {
+            # Fedora
+            cantarell_title_bold = tkfont.create(family = "Cantarell", size = title_font_size, weight = "bold")
+            cantarell_other_normal = tkfont.create(family = "Cantarell", size = other_font_size, weight = "normal")
+            cantarell_other_bold = tkfont.create(family = "Cantarell", size = other_font_size, weight = "bold")
+            liberation_title_bold = tkfont.create(family = "Liberation Sans", size = title_font_size, weight = "bold")
+            liberation_other_normal = tkfont.create(family = "Liberation Sans", size = other_font_size, weight = "normal")
+            liberation_other_bold = tkfont.create(family = "Liberation Sans", size = other_font_size, weight = "bold")
+            # Use them in the GUI
+            title_font = cantarell_title_bold
+            label_font = cantarell_other_normal
+            entry_font = cantarell_other_normal
+            button_font = cantarell_other_bold
+        } else {
+            # Other linux distros
+            liberation_title_bold = tkfont.create(family = "Liberation Sans", size = title_font_size, weight = "bold")
+            liberation_other_normal = tkfont.create(family = "Liberation Sans", size = other_font_size, weight = "normal")
+            liberation_other_bold = tkfont.create(family = "Liberation Sans", size = other_font_size, weight = "bold")
+            # Use them in the GUI
+            title_font = liberation_title_bold
+            label_font = liberation_other_normal
+            entry_font = liberation_other_normal
+            button_font = liberation_other_bold
+        }
+    } else if (system_os == "Darwin") {
+        # macOS
+        helvetica_title_bold = tkfont.create(family = "Helvetica", size = title_font_size, weight = "bold")
+        helvetica_other_normal = tkfont.create(family = "Helvetica", size = other_font_size, weight = "normal")
+        helvetica_other_bold = tkfont.create(family = "Helvetica", size = other_font_size, weight = "bold")
+        # Use them in the GUI
+        title_font = helvetica_title_bold
+        label_font = helvetica_other_normal
+        entry_font = helvetica_other_normal
+        button_font = helvetica_other_bold
+    }
+    
+    
+    # The "area" where we will put our input lines
+    window <- tktoplevel(bg = "white")
+    tkwm.resizable(window, FALSE, FALSE)
+    #tkpack.propagate(window, FALSE)
+    tktitle(window) <- "MASCOT OUTPUT MOD-PROCESSER"
+    # Title label
+    title_label <- tkbutton(window, text = "MASCOT\nOUTPUT\nMOD-PROCESSER", command = show_info_function, font = title_font, bg = "white", relief = "flat")
+    #### Browse
+    select_input_button <- tkbutton(window, text="IMPORT FILES...", command = file_import_function, font = button_font, bg = "white", width = 20)
+    browse_output_button <- tkbutton(window, text="BROWSE\nOUTPUT FOLDER...", command = browse_output_function, font = button_font, bg = "white", width = 20)
+    #### Entries
+    output_file_type_export_entry <- tkbutton(window, text="Output\nfile type", command = output_file_type_export_choice, font = button_font, bg = "white", width = 20)
+    # Buttons
+    download_updates_button <- tkbutton(window, text="DOWNLOAD\nUPDATE...", command = download_updates_function, font = button_font, bg = "white", width = 20)
+    run_mascot_output_modprocesser_function_button <- tkbutton(window, text = "RUN MASCOT OUTPUT\nMOD-PROCESSER", command = run_mascot_output_modprocesser_function, font = button_font, bg = "white", width = 20)
+    end_session_button <- tkbutton(window, text="QUIT", command = end_session_function, font = button_font, bg = "white", width = 20)
+    #### Displaying labels
+    check_for_updates_value_label <- tklabel(window, text = check_for_updates_value, font = label_font, bg = "white", width = 20)
+    output_file_type_export_value_label <- tklabel(window, text = output_file_type_export_value, font = label_font, bg = "white", width = 30)
+    
+    #### Geometry manager
+    tkgrid(title_label, row = 1, column = 1, padx = c(20, 20), pady = c(20, 20))
+    tkgrid(download_updates_button, row = 1, column = 2, padx = c(10, 10), pady = c(10, 10))
+    tkgrid(check_for_updates_value_label, row = 1, column = 3, padx = c(10, 10), pady = c(10, 10))
+    tkgrid(output_file_type_export_entry, row = 2, column = 1, padx = c(10, 10), pady = c(10, 10))
+    tkgrid(output_file_type_export_value_label, row = 2, column = 2, padx = c(10, 10), pady = c(10, 10))
+    tkgrid(browse_output_button, row = 3, column = 1, padx = c(10, 10), pady = c(10, 10))
+    tkgrid(select_input_button, row = 3, column = 2, padx = c(10, 10), pady = c(10, 10))
+    tkgrid(run_mascot_output_modprocesser_function_button, row = 3, column = 3, padx = c(10, 10), pady = c(10, 10))
+    tkgrid(end_session_button, row = 4, column = 2, padx = c(10, 10), pady = c(10, 10))
+    
+    
+    ################################################################################
+}
+
+
+
+
+# Run the function
+mascot_output_mod_processer()
