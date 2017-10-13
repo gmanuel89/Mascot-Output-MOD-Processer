@@ -67,7 +67,7 @@ The results are organised as follows:
 
 ## Example
 
-#### Organization of the data
+#### Organisation of the data
 Example of folder hierarchy:
 
 /Input folder/PROT File 1.csv
