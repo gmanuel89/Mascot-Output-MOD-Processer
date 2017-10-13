@@ -10,13 +10,13 @@ https://www.r-project.org/
 ***
 
 ## Platform(s) tested
-Ubuntu Linux 16.04 x64 - R 3.4.0
+Ubuntu Linux 16.04 x64 - R 3.4.1
 
-Fedora Linux 25 x64 - R 3.4.0
+Fedora Linux 26 x64 - R 3.4.1
 
-Microsoft Windows 7 x64 - R 3.4.0
+Microsoft Windows 7 x64 - R 3.4.1
 
-Microsoft Windows 10 x64 - R 3.4.0
+Microsoft Windows 10 x64 - R 3.4.1
 
 ***
 
@@ -31,14 +31,14 @@ These true modified peptides are then merged with the unmodified peptides and th
 
 ***
 
-## Type of data and its organization
+## Type of data and its organisation
 
 #### Type of data
 The software reads a folder containing the CSV files from Mascot.
 
 
-#### Organization of the data
-The two CSV files should be put in the same folder, which will be read by the software. One file name should start with "PROT" (the unmodified proteome) and the other one with "MOD" (the proteome that underwent modification), so that the software can recognize where the information comes from.
+#### Organisation of the data
+The two CSV files should be put in the same folder, which will be read by the software. One file name should start with "PROT" (the unmodified proteome) and the other one with "MOD" (the proteome that underwent modification), so that the software can recognise where the information comes from.
 
 It is not necessary to manually remove the additional information from the Mascot CSV file, because the software automatically discards it by keeping only the information needed (in the form of a matrix).
 
@@ -46,7 +46,7 @@ It is not necessary to manually remove the additional information from the Masco
 #### Output data
 The software generates a folder named "MASCOT" followed by an incremental number, in which all the output files are placed.
 
-The results are organized as follows:
+The results are organised as follows:
 * A folder named "MODIFIED PROTEOME" in which there are the following CSV files:
     * A copy of the original file (the one with the name beginning with "MOD")
     * A file named "Non-modified peptides" with the peptides that do not carry any modification.
